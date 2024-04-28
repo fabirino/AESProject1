@@ -38,9 +38,11 @@ typedef struct ms_e1_add_asset_t {
 } ms_e1_add_asset_t;
 
 typedef struct ms_e1_list_assets_t {
+	unsigned char* ms_file_name;
 	unsigned char* ms_sealed_data;
 	unsigned char* ms_author;
 	unsigned char* ms_password;
+	size_t ms_file_name_len;
 	uint32_t ms_sealed_data_size;
 	size_t ms_author_len;
 	size_t ms_password_len;
@@ -146,13 +148,15 @@ sgx_status_t e1_add_asset(sgx_enclave_id_t eid, unsigned char* tpdv_data, unsign
 	return status;
 }
 
-sgx_status_t e1_list_assets(sgx_enclave_id_t eid, unsigned char* sealed_data, unsigned char* author, unsigned char* password, uint32_t sealed_data_size, size_t author_len, size_t password_len)
+sgx_status_t e1_list_assets(sgx_enclave_id_t eid, unsigned char* file_name, unsigned char* sealed_data, unsigned char* author, unsigned char* password, size_t file_name_len, uint32_t sealed_data_size, size_t author_len, size_t password_len)
 {
 	sgx_status_t status;
 	ms_e1_list_assets_t ms;
+	ms.ms_file_name = file_name;
 	ms.ms_sealed_data = sealed_data;
 	ms.ms_author = author;
 	ms.ms_password = password;
+	ms.ms_file_name_len = file_name_len;
 	ms.ms_sealed_data_size = sealed_data_size;
 	ms.ms_author_len = author_len;
 	ms.ms_password_len = password_len;

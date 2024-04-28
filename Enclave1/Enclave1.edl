@@ -65,9 +65,11 @@ enclave {
                                  [out, size=sealed_data_size] unsigned char *sealed_data,
                                  uint32_t sealed_data_size);
         
-        public void e1_list_assets([in, size=sealed_data_size] unsigned char *sealed_data,
+        public void e1_list_assets([in, size=file_name_len] unsigned char *file_name,
+                                   [in, size=sealed_data_size] unsigned char *sealed_data,
                                    [in, size=author_len] unsigned char *author,
                                    [in, size=password_len] unsigned char *password,
+                                   size_t file_name_len,
                                    uint32_t sealed_data_size,
                                    size_t author_len,
                                    size_t password_len);

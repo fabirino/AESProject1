@@ -64,9 +64,11 @@ typedef struct ms_e1_add_asset_t {
 } ms_e1_add_asset_t;
 
 typedef struct ms_e1_list_assets_t {
+	unsigned char* ms_file_name;
 	unsigned char* ms_sealed_data;
 	unsigned char* ms_author;
 	unsigned char* ms_password;
+	size_t ms_file_name_len;
 	uint32_t ms_sealed_data_size;
 	size_t ms_author_len;
 	size_t ms_password_len;
@@ -463,6 +465,10 @@ static sgx_status_t SGX_CDECL sgx_e1_list_assets(void* pms)
 		return SGX_ERROR_UNEXPECTED;
 	}
 	sgx_status_t status = SGX_SUCCESS;
+	unsigned char* _tmp_file_name = __in_ms.ms_file_name;
+	size_t _tmp_file_name_len = __in_ms.ms_file_name_len;
+	size_t _len_file_name = _tmp_file_name_len;
+	unsigned char* _in_file_name = NULL;
 	unsigned char* _tmp_sealed_data = __in_ms.ms_sealed_data;
 	uint32_t _tmp_sealed_data_size = __in_ms.ms_sealed_data_size;
 	size_t _len_sealed_data = _tmp_sealed_data_size;
@@ -476,6 +482,7 @@ static sgx_status_t SGX_CDECL sgx_e1_list_assets(void* pms)
 	size_t _len_password = _tmp_password_len;
 	unsigned char* _in_password = NULL;
 
+	CHECK_UNIQUE_POINTER(_tmp_file_name, _len_file_name);
 	CHECK_UNIQUE_POINTER(_tmp_sealed_data, _len_sealed_data);
 	CHECK_UNIQUE_POINTER(_tmp_author, _len_author);
 	CHECK_UNIQUE_POINTER(_tmp_password, _len_password);
@@ -485,6 +492,24 @@ static sgx_status_t SGX_CDECL sgx_e1_list_assets(void* pms)
 	//
 	sgx_lfence();
 
+	if (_tmp_file_name != NULL && _len_file_name != 0) {
+		if ( _len_file_name % sizeof(*_tmp_file_name) != 0)
+		{
+			status = SGX_ERROR_INVALID_PARAMETER;
+			goto err;
+		}
+		_in_file_name = (unsigned char*)malloc(_len_file_name);
+		if (_in_file_name == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		if (memcpy_s(_in_file_name, _len_file_name, _tmp_file_name, _len_file_name)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+
+	}
 	if (_tmp_sealed_data != NULL && _len_sealed_data != 0) {
 		if ( _len_sealed_data % sizeof(*_tmp_sealed_data) != 0)
 		{
@@ -539,9 +564,10 @@ static sgx_status_t SGX_CDECL sgx_e1_list_assets(void* pms)
 		}
 
 	}
-	e1_list_assets(_in_sealed_data, _in_author, _in_password, _tmp_sealed_data_size, _tmp_author_len, _tmp_password_len);
+	e1_list_assets(_in_file_name, _in_sealed_data, _in_author, _in_password, _tmp_file_name_len, _tmp_sealed_data_size, _tmp_author_len, _tmp_password_len);
 
 err:
+	if (_in_file_name) free(_in_file_name);
 	if (_in_sealed_data) free(_in_sealed_data);
 	if (_in_author) free(_in_author);
 	if (_in_password) free(_in_password);

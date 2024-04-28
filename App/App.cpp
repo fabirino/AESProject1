@@ -514,14 +514,16 @@ int SGX_CDECL main(int argc, char *argv[]) {
             asset = (unsigned char *)malloc(asset_size);
             load_asset(asset_name, asset, asset_size);
 
+            
+
             // Alocar memoria para a sealed data = tamanho do TPDV (unsealed) + tamanho do asset
-            if ((ret = e1_get_unsealed_data_size(global_eid1, &total_size, tpdv_data, tpdv_data_size)) != SGX_SUCCESS) {
+            if ((ret = e1_get_unsealed_data_size(global_eid1, &unsealed_data_size, tpdv_data, tpdv_data_size)) != SGX_SUCCESS) {
                 print_error_message(ret, "e1_get_unsealed_data_size");
                 return 1;
             }
 
             // total_zise é a variavel responsavel por guardar o tamanho do TPDV (unsealed) mais o asset sem estarem sealed
-            total_size += asset_size;
+            total_size = unsealed_data_size + asset_size + 20 + 4; // 20 para o nome do asset e 4 para o tamanho do asset
 
             if ((ret = e1_get_sealed_data_size(global_eid1, &sealed_data_size, total_size)) != SGX_SUCCESS) {
                 print_error_message(ret, "e1_get_sealed_data_size");
@@ -531,13 +533,13 @@ int SGX_CDECL main(int argc, char *argv[]) {
             sealed_data = (unsigned char *)malloc(sealed_data_size);
             
             // ecall para adicionar o asset
-            if ((ret = e1_add_asset(global_eid1, tpdv_data, author, password, asset_name, asset, total_size-asset_size, tpdv_data_size,  AUTHOR_SIZE, PW_SIZE, FILE_NAME_SIZE, asset_size, sealed_data, sealed_data_size)) != SGX_SUCCESS) {
+            if ((ret = e1_add_asset(global_eid1, tpdv_data, author, password, asset_name, asset, unsealed_data_size, tpdv_data_size,  AUTHOR_SIZE, PW_SIZE, FILE_NAME_SIZE, asset_size, sealed_data, sealed_data_size)) != SGX_SUCCESS) {
                 print_error_message(ret, "e1_add_asset");
                 return 1;
             }
 
             // Guardar no ficheiro
-            // save_sealed_data(file_name, sealed_data, sealed_data_size);
+            save_sealed_data(file_name, sealed_data, sealed_data_size);
 
             free(tpdv_data);
             free(sealed_data);
@@ -596,7 +598,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
             }
 
             // ecall para listar os assets
-            if ((ret = e1_list_assets(global_eid1, sealed_data, author, password, sealed_data_size, AUTHOR_SIZE, PW_SIZE)) != SGX_SUCCESS) {
+            if ((ret = e1_list_assets(global_eid1, file_name, sealed_data, author, password, FILE_NAME_SIZE, sealed_data_size, AUTHOR_SIZE, PW_SIZE)) != SGX_SUCCESS) {
                 print_error_message(ret, "e1_list_assets");
                 return 1;
             }

@@ -186,72 +186,6 @@ void e1_create_tpdv(unsigned char *author, unsigned char *password, size_t autho
 void e1_add_asset(unsigned char *tpdv_data, unsigned char *author, unsigned char *password, unsigned char *asset_name, unsigned char *asset_content, uint32_t tpdv_data_size_unsealed, uint32_t tpdv_data_size_sealed, size_t author_len, size_t password_len, size_t asset_name_len, uint32_t asset_content_len, unsigned char *sealed_data, uint32_t sealed_data_size) {
     printf("ENCLAVE: Adding asset: %s\n", asset_name);
 
-    // // Unseal the data
-    // unsigned char *temp_buf = (unsigned char *)malloc(tpdv_data_size_unsealed);
-    // if (temp_buf == NULL) {
-    //     printf("ENCLAVE: Error allocating memory for sealed data\n");
-    //     return;
-    // }
-
-    // unseal_data(tpdv_data, tpdv_data_size_sealed, temp_buf);
-
-
-    // // Check credentials
-    // unsigned char actual_author[AUTHOR_SIZE] = {0};
-    // unsigned char actual_password[PW_SIZE] = {0};
-    // memcpy(actual_author, temp_buf, AUTHOR_SIZE);
-    // memcpy(actual_password, temp_buf + AUTHOR_SIZE, PW_SIZE);
-
-    // if (!check_credentials(actual_password, actual_author, password, author)) {
-    //     printf("ENCLAVE: Invalid credentials\n");
-    //     return;
-    // }
-
-    // // Add the asset to the TPDV
-    // unsigned char *new_tpdv_data = (unsigned char *)malloc(tpdv_data_size_sealed + asset_content_len + asset_name_len + 4); // 4 = bytes to store the size of the asset
-
-    // if (new_tpdv_data == NULL) {
-    //     printf("ENCLAVE: Error allocating memory for new TPDV data\n");
-    //     return;
-    // }
-
-    // // Convert the asset size to a byte array
-    // unsigned char asset_size_bytes[4];
-    // asset_size_bytes[0] = (asset_content_len >> 24) & 0xFF;
-    // asset_size_bytes[1] = (asset_content_len >> 16) & 0xFF;
-    // asset_size_bytes[2] = (asset_content_len >> 8) & 0xFF;
-    // asset_size_bytes[3] = asset_content_len & 0xFF;
-
-    // // Add the asset to the TPDV
-    // memcpy(new_tpdv_data, temp_buf, tpdv_data_size_unsealed);
-    // memcpy(new_tpdv_data + tpdv_data_size_sealed, asset_name, asset_name_len);
-    // memcpy(new_tpdv_data + tpdv_data_size_sealed + asset_name_len, asset_size_bytes, 4);
-    // memcpy(new_tpdv_data + tpdv_data_size_sealed + asset_name_len + 4, asset_content, asset_content_len);
-
-    // // DEBUG: 
-    // for (int i = 0; i < tpdv_data_size_sealed + asset_name_len + 4 + asset_content_len; i++) {
-    //     if (new_tpdv_data[i] != '\0')
-    //         printf("ENCLAVE: new_tpdv_data[%d]: %c\n", i, new_tpdv_data[i]);
-    //     else
-    //         printf("ENCLAVE: new_tpdv_data[%d]: \\0\n", i);
-    // }
-
-    // // Seal the new TPDV data
-    // unsigned char *temp_buf2 = (unsigned char *)malloc(sealed_data_size);
-    // if (temp_buf2 == NULL) {
-    //     printf("ENCLAVE: Error allocating memory for sealed data\n");
-    //     return;
-    // }
-
-    // seal_data(new_tpdv_data, tpdv_data_size_sealed + asset_name_len + 4 + asset_content_len, temp_buf2);
-    // memcpy(sealed_data, temp_buf2, sealed_data_size);
-
-
-    // free(temp_buf);
-    // free(new_tpdv_data);
-    // free(temp_buf2);
-
-
     // Unseal the data
     unsigned char *temp_buf = (unsigned char *)malloc(tpdv_data_size_unsealed);
     if (temp_buf == NULL) {
@@ -271,6 +205,9 @@ void e1_add_asset(unsigned char *tpdv_data, unsigned char *author, unsigned char
         printf("ENCLAVE: Invalid credentials\n");
         return;
     }
+
+    // +1 asset
+    temp_buf[AUTHOR_SIZE + PW_SIZE] += 1;
 
     // Add the asset to the TPDV
     unsigned char *new_tpdv_data = (unsigned char *)malloc(tpdv_data_size_unsealed + asset_content_len + asset_name_len + 4); // 4 = bytes to store the size of the asset
@@ -293,15 +230,21 @@ void e1_add_asset(unsigned char *tpdv_data, unsigned char *author, unsigned char
     memcpy(new_tpdv_data + tpdv_data_size_unsealed + asset_name_len, asset_size_bytes, 4);
     memcpy(new_tpdv_data + tpdv_data_size_unsealed + asset_name_len + 4, asset_content, asset_content_len);
 
-    // DEBUG:
-    // for (int i = 0; i < tpdv_data_size_unsealed + asset_name_len + 4 + asset_content_len; i++) {
-    //     if (new_tpdv_data[i] != '\0')
-    //         printf("ENCLAVE: new_tpdv_data[%d]: %c\n", i, new_tpdv_data[i]);
-    //     else
-    //         printf("ENCLAVE: new_tpdv_data[%d]: \\0\n", i);
-    // }
 
 
+    // Seal the new TPDV data
+    unsigned char *temp_buf2 = (unsigned char *)malloc(sealed_data_size);
+    if (temp_buf2 == NULL) {
+        printf("ENCLAVE: Error allocating memory for sealed data\n");
+        return;
+    }
+
+    seal_data(new_tpdv_data, tpdv_data_size_unsealed + asset_name_len + 4 + asset_content_len, temp_buf2);
+    memcpy(sealed_data, temp_buf2, sealed_data_size);
+
+    free(temp_buf);
+    free(new_tpdv_data);
+    free(temp_buf2);
 
 
 }
@@ -310,7 +253,7 @@ void e1_add_asset(unsigned char *tpdv_data, unsigned char *author, unsigned char
 // =================================================================== 3 ===================================================================
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
 
-void e1_list_assets(unsigned char *sealed_data, unsigned char *author, unsigned char *password, uint32_t sealed_data_size, size_t author_len, size_t password_len) {
+void e1_list_assets(unsigned char * file_name, unsigned char *sealed_data, unsigned char *author, unsigned char *password, size_t file_name_size, uint32_t sealed_data_size, size_t author_len, size_t password_len) {
     printf("ENCLAVE: Listing assets from TPDV\n");
 
     unsigned char *temp_buf = (unsigned char *)malloc(sealed_data_size);
@@ -336,17 +279,41 @@ void e1_list_assets(unsigned char *sealed_data, unsigned char *author, unsigned 
         return;
     }
 
+    // Get the number of assets
+    unsigned char num_assets = temp_buf[AUTHOR_SIZE + PW_SIZE];
+
+    printf("ENCLAVE: Name of the TPDV: %s\n", file_name);
+    printf("ENCLAVE: Author: %s\n", actual_author);
+    printf("ENCLAVE: Number of assets: %d\n", num_assets);
+    printf("\n");
+
+    uint32_t pointer = HEADER_SIZE; // Skip the header
+    
+    for (int i = 0; i < num_assets; i++) {
+        unsigned char asset_name[20] = {0};
+        unsigned char asset_size_bytes[4] = {0};
+        uint32_t asset_size = 0;
+
+        // Get the asset name
+        memcpy(asset_name, temp_buf + pointer, 20);
+        printf("ENCLAVE: Asset name: %s\n", asset_name);
+
+        pointer += 20;
+        asset_size |= (uint32_t)temp_buf[pointer++] << 24;
+        asset_size |= (uint32_t)temp_buf[pointer++] << 16;
+        asset_size |= (uint32_t)temp_buf[pointer++] << 8;
+        asset_size |= (uint32_t)temp_buf[pointer++];
+        printf("ENCLAVE: Asset size: %d\n", asset_size);
+
+        unsigned char asset_content[asset_size];
+        memcpy(asset_content, temp_buf + pointer, asset_size);
+        printf("ENCLAVE: Asset content: %s\n", asset_content);
+        pointer += asset_size;
+        printf("\n");
+    }
+
 
     free(temp_buf);
-
-    // DEBUG:
-    // printf("ENCLAVE: Unsealed data size: %d\n", unsealed_data_size);
-    // for (int i = 0; i < unsealed_data_size; i++) {
-    //     if (unsealed_data[i] != '\0')
-    //         printf("ENCLAVE: unsealed_data[%d]: %c\n", i, unsealed_data[i]);
-    //     else
-    //         printf("ENCLAVE: unsealed_data[%d]: \\0\n", i);
-    // }
 }
 
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
