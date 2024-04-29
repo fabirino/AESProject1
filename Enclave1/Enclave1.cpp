@@ -448,12 +448,26 @@ void e1_change_password(unsigned char *tpdv_data, unsigned char *author, unsigne
     }
 
     // DEBUG:
-    for (int i =0 ; i < unsealed_size; i++) {
-        if (temp_buf[i] == '\0') {
-            printf("ENCLAVE: [%d]= \\0\n", i);
-        } else {
-            printf("ENCLAVE: [%d]= %c\n", i, temp_buf[i]);
-        }
+    // for (int i =0 ; i < unsealed_size; i++) {
+    //     if (temp_buf[i] == '\0') {
+    //         printf("ENCLAVE: [%d]= \\0\n", i);
+    //     } else {
+    //         printf("ENCLAVE: [%d]= %c\n", i, temp_buf[i]);
+    //     }
+    // }
+
+    // Change the password
+    memcpy(temp_buf + AUTHOR_SIZE, new_password, new_password_len);
+
+    // Seal the new TPDV data
+    unsigned char *temp_buf2 = (unsigned char *)malloc(sealed_data_size);
+    if (temp_buf2 == NULL) {
+        printf("ENCLAVE: Error allocating memory for sealed data\n");
+        return;
     }
+
+    seal_data(temp_buf, unsealed_size, temp_buf2);
+
+    memcpy(sealed_data, temp_buf2, sealed_data_size);
 
 }

@@ -796,10 +796,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
             }
 
             // Guardar o ficheiro
-            // save_sealed_data(file_name, sealed_data, tpdv_data_size);
-
-            
-
+            save_sealed_data(file_name, sealed_data, tpdv_data_size);
 
             break;
 
