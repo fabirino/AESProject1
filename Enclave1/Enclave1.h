@@ -49,6 +49,8 @@ void e1_list_assets(unsigned char * file_name, unsigned char *sealed_data, unsig
 uint32_t e1_get_asset_size(unsigned char *sealed_data, int indice, uint32_t sealed_data_size);
 void e1_extract_asset(unsigned char *sealed_data, unsigned char *author, unsigned char *password, int indice, uint32_t sealed_data_size, size_t author_len, size_t password_len, unsigned char *unsealed_data, unsigned char* asset_name, uint32_t asset_size, size_t asset_name_len);
 void e1_compare_hash(unsigned char *author, unsigned char *password, int indice,size_t author_len, size_t password_len, unsigned char *hash, size_t hash_len);
+void e1_change_password(unsigned char *tpdv_data, unsigned char *author, unsigned char *password, unsigned char *new_password, uint32_t tpdv_data_size, size_t author_len, size_t password_len, size_t new_password_len, unsigned char *sealed_data, uint32_t sealed_data_size);
+
 
 #if defined(__cplusplus)
 }

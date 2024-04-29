@@ -79,6 +79,19 @@ typedef struct ms_e1_compare_hash_t {
 	size_t ms_hash_size;
 } ms_e1_compare_hash_t;
 
+typedef struct ms_e1_change_password_t {
+	unsigned char* ms_tpdv_data;
+	unsigned char* ms_author;
+	unsigned char* ms_password;
+	unsigned char* ms_new_password;
+	uint32_t ms_tpdv_data_size;
+	size_t ms_author_len;
+	size_t ms_password_len;
+	size_t ms_new_password_len;
+	unsigned char* ms_sealed_data;
+	uint32_t ms_sealed_data_size;
+} ms_e1_change_password_t;
+
 typedef struct ms_ocall_e1_print_string_t {
 	const char* ms_str;
 } ms_ocall_e1_print_string_t;
@@ -215,6 +228,24 @@ sgx_status_t e1_compare_hash(sgx_enclave_id_t eid, unsigned char* author, unsign
 	ms.ms_hash = hash;
 	ms.ms_hash_size = hash_size;
 	status = sgx_ecall(eid, 7, &ocall_table_Enclave1, &ms);
+	return status;
+}
+
+sgx_status_t e1_change_password(sgx_enclave_id_t eid, unsigned char* tpdv_data, unsigned char* author, unsigned char* password, unsigned char* new_password, uint32_t tpdv_data_size, size_t author_len, size_t password_len, size_t new_password_len, unsigned char* sealed_data, uint32_t sealed_data_size)
+{
+	sgx_status_t status;
+	ms_e1_change_password_t ms;
+	ms.ms_tpdv_data = tpdv_data;
+	ms.ms_author = author;
+	ms.ms_password = password;
+	ms.ms_new_password = new_password;
+	ms.ms_tpdv_data_size = tpdv_data_size;
+	ms.ms_author_len = author_len;
+	ms.ms_password_len = password_len;
+	ms.ms_new_password_len = new_password_len;
+	ms.ms_sealed_data = sealed_data;
+	ms.ms_sealed_data_size = sealed_data_size;
+	status = sgx_ecall(eid, 8, &ocall_table_Enclave1, &ms);
 	return status;
 }
 

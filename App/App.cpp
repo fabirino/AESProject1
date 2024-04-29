@@ -321,6 +321,10 @@ void save_asset(unsigned char *asset_name, unsigned char *asset_content, size_t 
  * Application entry
  */
 
+// #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
+// =========================================================================================================================================
+// #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
+
 int SGX_CDECL main(int argc, char *argv[]) {
     sgx_status_t ret;
 
@@ -346,6 +350,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
     unsigned char *unsealed_data = NULL;
     unsigned char *tpdv_data = NULL;
     uint32_t total_size = 0;
+    unsigned char new_password[PW_SIZE] = {0};
 
     int i = 0;
     int byte;
@@ -377,6 +382,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
         tpdv_data = NULL;
         tpdv_data_size = 0;
         total_size = 0;
+        memset(new_password, 0, PW_SIZE);
 
         // Print menu
         printf("\nSelecione uma opção\n");
@@ -734,6 +740,66 @@ int SGX_CDECL main(int argc, char *argv[]) {
         // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
         case '6':
             // 6 - Mudar a password de um TPDV
+
+            printf("Introduza o nome do ficheiro TPDV: ");
+            fgets((char *)file_name, FILE_NAME_SIZE, stdin);
+            for (int j = 0; j < FILE_NAME_SIZE; j++) {
+                if (file_name[j] == '\n') {
+                    file_name[j] = '\0';
+                    break;
+                }
+            }
+
+            printf("Introduza o seu nome: ");
+            fgets((char *)author, AUTHOR_SIZE, stdin);
+            for (int j = 0; j < AUTHOR_SIZE; j++) {
+                if (author[j] == '\n') {
+                    author[j] = '\0';
+                    break;
+                }
+            }
+
+            printf("Introduza a sua palavra passe atual: ");
+            fgets((char *)password, PW_SIZE, stdin);
+            for (int j = 0; j < PW_SIZE; j++) {
+                if (password[j] == '\n') {
+                    password[j] = '\0';
+                    break;
+                }
+            }
+
+            printf("Introduza a nova palavra passe: ");
+            fgets((char *)new_password, PW_SIZE, stdin);
+            for (int j = 0; j < PW_SIZE; j++) {
+                if (new_password[j] == '\n') {
+                    new_password[j] = '\0';
+                    break;
+                }
+            }
+
+            if (!TPDV_exists(file_name)) {
+                printf("Operação cancelada: o ficheiro não existe.\n");
+                break;
+            }
+
+            // Carregar o TPDV
+            tpdv_data_size = get_TPDV_size(file_name);
+            tpdv_data = (unsigned char *)malloc(tpdv_data_size);
+            load_sealed_data(file_name, tpdv_data, tpdv_data_size);
+
+            sealed_data = (unsigned char *)malloc(tpdv_data_size); // same size as tpdv_data
+
+            // ecall para mudar a password
+            if ((ret = e1_change_password(global_eid1, tpdv_data, author, password, new_password, tpdv_data_size, AUTHOR_SIZE, PW_SIZE, PW_SIZE, sealed_data, tpdv_data_size)) != SGX_SUCCESS) {
+                print_error_message(ret, "e1_change_password");
+                return 1;
+            }
+
+            // Guardar o ficheiro
+            // save_sealed_data(file_name, sealed_data, tpdv_data_size);
+
+            
+
 
             break;
 

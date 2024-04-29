@@ -29,6 +29,7 @@ sgx_status_t e1_list_assets(sgx_enclave_id_t eid, unsigned char* file_name, unsi
 sgx_status_t e1_get_asset_size(sgx_enclave_id_t eid, uint32_t* retval, unsigned char* seal_data, int indice, uint32_t tpdv_data_size);
 sgx_status_t e1_extract_asset(sgx_enclave_id_t eid, unsigned char* sealed_data, unsigned char* author, unsigned char* password, int indice, uint32_t sealed_data_size, size_t author_len, size_t password_len, unsigned char* unsealed_data, unsigned char* asset_name, uint32_t asset_size, size_t asset_name_len);
 sgx_status_t e1_compare_hash(sgx_enclave_id_t eid, unsigned char* author, unsigned char* password, int indice, size_t AUTHOR_SIZE, size_t PW_SIZE, unsigned char* hash, size_t hash_size);
+sgx_status_t e1_change_password(sgx_enclave_id_t eid, unsigned char* tpdv_data, unsigned char* author, unsigned char* password, unsigned char* new_password, uint32_t tpdv_data_size, size_t author_len, size_t password_len, size_t new_password_len, unsigned char* sealed_data, uint32_t sealed_data_size);
 
 #ifdef __cplusplus
 }

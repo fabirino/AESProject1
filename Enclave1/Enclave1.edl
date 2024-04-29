@@ -97,6 +97,18 @@ enclave {
                                     size_t PW_SIZE,
                                     [out, size=hash_size] unsigned char *hash,
                                     size_t hash_size);
+
+        public void e1_change_password([in, size=tpdv_data_size ]unsigned char *tpdv_data,
+                                       [in, size=author_len] unsigned char *author,
+                                       [in, size=password_len] unsigned char *password,
+                                       [in, size=new_password_len] unsigned char *new_password,
+                                       uint32_t tpdv_data_size,
+                                       size_t author_len,
+                                       size_t password_len,
+                                       size_t new_password_len,
+                                       [out, size = sealed_data_size] unsigned char *sealed_data,
+                                       uint32_t sealed_data_size);
+
     };
 
     /* 

@@ -105,6 +105,19 @@ typedef struct ms_e1_compare_hash_t {
 	size_t ms_hash_size;
 } ms_e1_compare_hash_t;
 
+typedef struct ms_e1_change_password_t {
+	unsigned char* ms_tpdv_data;
+	unsigned char* ms_author;
+	unsigned char* ms_password;
+	unsigned char* ms_new_password;
+	uint32_t ms_tpdv_data_size;
+	size_t ms_author_len;
+	size_t ms_password_len;
+	size_t ms_new_password_len;
+	unsigned char* ms_sealed_data;
+	uint32_t ms_sealed_data_size;
+} ms_e1_change_password_t;
+
 typedef struct ms_ocall_e1_print_string_t {
 	const char* ms_str;
 } ms_ocall_e1_print_string_t;
@@ -884,11 +897,158 @@ err:
 	return status;
 }
 
+static sgx_status_t SGX_CDECL sgx_e1_change_password(void* pms)
+{
+	CHECK_REF_POINTER(pms, sizeof(ms_e1_change_password_t));
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+	ms_e1_change_password_t* ms = SGX_CAST(ms_e1_change_password_t*, pms);
+	ms_e1_change_password_t __in_ms;
+	if (memcpy_s(&__in_ms, sizeof(ms_e1_change_password_t), ms, sizeof(ms_e1_change_password_t))) {
+		return SGX_ERROR_UNEXPECTED;
+	}
+	sgx_status_t status = SGX_SUCCESS;
+	unsigned char* _tmp_tpdv_data = __in_ms.ms_tpdv_data;
+	uint32_t _tmp_tpdv_data_size = __in_ms.ms_tpdv_data_size;
+	size_t _len_tpdv_data = _tmp_tpdv_data_size;
+	unsigned char* _in_tpdv_data = NULL;
+	unsigned char* _tmp_author = __in_ms.ms_author;
+	size_t _tmp_author_len = __in_ms.ms_author_len;
+	size_t _len_author = _tmp_author_len;
+	unsigned char* _in_author = NULL;
+	unsigned char* _tmp_password = __in_ms.ms_password;
+	size_t _tmp_password_len = __in_ms.ms_password_len;
+	size_t _len_password = _tmp_password_len;
+	unsigned char* _in_password = NULL;
+	unsigned char* _tmp_new_password = __in_ms.ms_new_password;
+	size_t _tmp_new_password_len = __in_ms.ms_new_password_len;
+	size_t _len_new_password = _tmp_new_password_len;
+	unsigned char* _in_new_password = NULL;
+	unsigned char* _tmp_sealed_data = __in_ms.ms_sealed_data;
+	uint32_t _tmp_sealed_data_size = __in_ms.ms_sealed_data_size;
+	size_t _len_sealed_data = _tmp_sealed_data_size;
+	unsigned char* _in_sealed_data = NULL;
+
+	CHECK_UNIQUE_POINTER(_tmp_tpdv_data, _len_tpdv_data);
+	CHECK_UNIQUE_POINTER(_tmp_author, _len_author);
+	CHECK_UNIQUE_POINTER(_tmp_password, _len_password);
+	CHECK_UNIQUE_POINTER(_tmp_new_password, _len_new_password);
+	CHECK_UNIQUE_POINTER(_tmp_sealed_data, _len_sealed_data);
+
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+
+	if (_tmp_tpdv_data != NULL && _len_tpdv_data != 0) {
+		if ( _len_tpdv_data % sizeof(*_tmp_tpdv_data) != 0)
+		{
+			status = SGX_ERROR_INVALID_PARAMETER;
+			goto err;
+		}
+		_in_tpdv_data = (unsigned char*)malloc(_len_tpdv_data);
+		if (_in_tpdv_data == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		if (memcpy_s(_in_tpdv_data, _len_tpdv_data, _tmp_tpdv_data, _len_tpdv_data)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+
+	}
+	if (_tmp_author != NULL && _len_author != 0) {
+		if ( _len_author % sizeof(*_tmp_author) != 0)
+		{
+			status = SGX_ERROR_INVALID_PARAMETER;
+			goto err;
+		}
+		_in_author = (unsigned char*)malloc(_len_author);
+		if (_in_author == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		if (memcpy_s(_in_author, _len_author, _tmp_author, _len_author)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+
+	}
+	if (_tmp_password != NULL && _len_password != 0) {
+		if ( _len_password % sizeof(*_tmp_password) != 0)
+		{
+			status = SGX_ERROR_INVALID_PARAMETER;
+			goto err;
+		}
+		_in_password = (unsigned char*)malloc(_len_password);
+		if (_in_password == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		if (memcpy_s(_in_password, _len_password, _tmp_password, _len_password)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+
+	}
+	if (_tmp_new_password != NULL && _len_new_password != 0) {
+		if ( _len_new_password % sizeof(*_tmp_new_password) != 0)
+		{
+			status = SGX_ERROR_INVALID_PARAMETER;
+			goto err;
+		}
+		_in_new_password = (unsigned char*)malloc(_len_new_password);
+		if (_in_new_password == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		if (memcpy_s(_in_new_password, _len_new_password, _tmp_new_password, _len_new_password)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+
+	}
+	if (_tmp_sealed_data != NULL && _len_sealed_data != 0) {
+		if ( _len_sealed_data % sizeof(*_tmp_sealed_data) != 0)
+		{
+			status = SGX_ERROR_INVALID_PARAMETER;
+			goto err;
+		}
+		if ((_in_sealed_data = (unsigned char*)malloc(_len_sealed_data)) == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		memset((void*)_in_sealed_data, 0, _len_sealed_data);
+	}
+	e1_change_password(_in_tpdv_data, _in_author, _in_password, _in_new_password, _tmp_tpdv_data_size, _tmp_author_len, _tmp_password_len, _tmp_new_password_len, _in_sealed_data, _tmp_sealed_data_size);
+	if (_in_sealed_data) {
+		if (memcpy_verw_s(_tmp_sealed_data, _len_sealed_data, _in_sealed_data, _len_sealed_data)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+	}
+
+err:
+	if (_in_tpdv_data) free(_in_tpdv_data);
+	if (_in_author) free(_in_author);
+	if (_in_password) free(_in_password);
+	if (_in_new_password) free(_in_new_password);
+	if (_in_sealed_data) free(_in_sealed_data);
+	return status;
+}
+
 SGX_EXTERNC const struct {
 	size_t nr_ecall;
-	struct {void* ecall_addr; uint8_t is_priv; uint8_t is_switchless;} ecall_table[8];
+	struct {void* ecall_addr; uint8_t is_priv; uint8_t is_switchless;} ecall_table[9];
 } g_ecall_table = {
-	8,
+	9,
 	{
 		{(void*)(uintptr_t)sgx_e1_get_sealed_data_size, 0, 0},
 		{(void*)(uintptr_t)sgx_e1_get_unsealed_data_size, 0, 0},
@@ -898,16 +1058,17 @@ SGX_EXTERNC const struct {
 		{(void*)(uintptr_t)sgx_e1_get_asset_size, 0, 0},
 		{(void*)(uintptr_t)sgx_e1_extract_asset, 0, 0},
 		{(void*)(uintptr_t)sgx_e1_compare_hash, 0, 0},
+		{(void*)(uintptr_t)sgx_e1_change_password, 0, 0},
 	}
 };
 
 SGX_EXTERNC const struct {
 	size_t nr_ocall;
-	uint8_t entry_table[1][8];
+	uint8_t entry_table[1][9];
 } g_dyn_entry_table = {
 	1,
 	{
-		{0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
 	}
 };
 

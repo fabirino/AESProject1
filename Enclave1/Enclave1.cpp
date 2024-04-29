@@ -254,7 +254,9 @@ void e1_add_asset(unsigned char *tpdv_data, unsigned char *author, unsigned char
 void e1_list_assets(unsigned char * file_name, unsigned char *sealed_data, unsigned char *author, unsigned char *password, size_t file_name_size, uint32_t sealed_data_size, size_t author_len, size_t password_len) {
     printf("ENCLAVE: Listing assets from TPDV\n");
 
-    unsigned char *temp_buf = (unsigned char *)malloc(sealed_data_size);
+    uint32_t unsealed_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)sealed_data);
+
+    unsigned char *temp_buf = (unsigned char *)malloc(unsealed_size);
     if (temp_buf == NULL) {
         printf("ENCLAVE: Error allocating memory for sealed data\n");
         return;
@@ -319,7 +321,10 @@ void e1_list_assets(unsigned char * file_name, unsigned char *sealed_data, unsig
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
 
 uint32_t e1_get_asset_size(unsigned char *sealed_data, int indice, uint32_t sealed_data_size){
-    unsigned char *temp_buf = (unsigned char *)malloc(sealed_data_size);
+
+    uint32_t unsealed_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)sealed_data);
+
+    unsigned char *temp_buf = (unsigned char *)malloc(unsealed_size);
     if (temp_buf == NULL) {
         printf("ENCLAVE: Error allocating memory for sealed data\n");
         return 0;
@@ -358,7 +363,9 @@ uint32_t e1_get_asset_size(unsigned char *sealed_data, int indice, uint32_t seal
 void e1_extract_asset(unsigned char *sealed_data, unsigned char *author, unsigned char *password, int indice, uint32_t sealed_data_size, size_t author_len, size_t password_len, unsigned char *unsealed_data, unsigned char* asset_name, uint32_t asset_size, size_t asset_name_len) {
     printf("ENCLAVE: Extracting asset %d\n", indice);
 
-    unsigned char *temp_buf = (unsigned char *)malloc(sealed_data_size);
+    uint32_t unsealed_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)sealed_data);
+
+    unsigned char *temp_buf = (unsigned char *)malloc(unsealed_size);
     if (temp_buf == NULL) {
         printf("ENCLAVE: Error allocating memory for sealed data\n");
         return;
@@ -416,5 +423,37 @@ void e1_compare_hash(unsigned char *author, unsigned char *password, int indice,
 // =================================================================== 6 ===================================================================
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
 
-void e1_change_password() {
+void e1_change_password(unsigned char *tpdv_data, unsigned char *author, unsigned char *password, unsigned char *new_password, uint32_t tpdv_data_size, size_t author_len, size_t password_len, size_t new_password_len, unsigned char *sealed_data, uint32_t sealed_data_size) {
+    printf("ENCLAVE: Changing password\n");
+
+    uint32_t unsealed_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)tpdv_data);
+
+    unsigned char *temp_buf = (unsigned char *)malloc(unsealed_size);
+    if (temp_buf == NULL) {
+        printf("ENCLAVE: Error allocating memory for sealed data\n");
+        return;
+    }
+
+    unseal_data(tpdv_data, tpdv_data_size, temp_buf);
+
+    // Check credentials
+    unsigned char actual_author[AUTHOR_SIZE] = {0};
+    unsigned char actual_password[PW_SIZE] = {0};
+    memcpy(actual_author, temp_buf, AUTHOR_SIZE);
+    memcpy(actual_password, temp_buf + AUTHOR_SIZE, PW_SIZE);
+
+    if (!check_credentials(actual_password, actual_author, password, author)) {
+        printf("ENCLAVE: Invalid credentials\n");
+        return;
+    }
+
+    // DEBUG:
+    for (int i =0 ; i < unsealed_size; i++) {
+        if (temp_buf[i] == '\0') {
+            printf("ENCLAVE: [%d]= \\0\n", i);
+        } else {
+            printf("ENCLAVE: [%d]= %c\n", i, temp_buf[i]);
+        }
+    }
+
 }
