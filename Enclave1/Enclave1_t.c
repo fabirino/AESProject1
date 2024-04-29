@@ -74,26 +74,34 @@ typedef struct ms_e1_list_assets_t {
 	size_t ms_password_len;
 } ms_e1_list_assets_t;
 
+typedef struct ms_e1_get_asset_size_t {
+	uint32_t ms_retval;
+	unsigned char* ms_seal_data;
+	int ms_indice;
+	uint32_t ms_tpdv_data_size;
+} ms_e1_get_asset_size_t;
+
 typedef struct ms_e1_extract_asset_t {
-	unsigned char* ms_file_name;
+	unsigned char* ms_sealed_data;
 	unsigned char* ms_author;
 	unsigned char* ms_password;
 	int ms_indice;
-	size_t ms_file_name_len;
+	uint32_t ms_sealed_data_size;
 	size_t ms_author_len;
 	size_t ms_password_len;
+	unsigned char* ms_unsealed_data;
+	unsigned char* ms_asset_name;
+	uint32_t ms_asset_size;
+	size_t ms_asset_name_len;
 } ms_e1_extract_asset_t;
 
 typedef struct ms_e1_compare_hash_t {
-	unsigned char* ms_file_name;
 	unsigned char* ms_author;
 	unsigned char* ms_password;
 	int ms_indice;
-	unsigned char* ms_hash;
-	int ms_hash_type;
-	size_t ms_FILE_NAME_SIZE;
 	size_t ms_AUTHOR_SIZE;
 	size_t ms_PW_SIZE;
+	unsigned char* ms_hash;
 	size_t ms_hash_size;
 } ms_e1_compare_hash_t;
 
@@ -574,6 +582,61 @@ err:
 	return status;
 }
 
+static sgx_status_t SGX_CDECL sgx_e1_get_asset_size(void* pms)
+{
+	CHECK_REF_POINTER(pms, sizeof(ms_e1_get_asset_size_t));
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+	ms_e1_get_asset_size_t* ms = SGX_CAST(ms_e1_get_asset_size_t*, pms);
+	ms_e1_get_asset_size_t __in_ms;
+	if (memcpy_s(&__in_ms, sizeof(ms_e1_get_asset_size_t), ms, sizeof(ms_e1_get_asset_size_t))) {
+		return SGX_ERROR_UNEXPECTED;
+	}
+	sgx_status_t status = SGX_SUCCESS;
+	unsigned char* _tmp_seal_data = __in_ms.ms_seal_data;
+	uint32_t _tmp_tpdv_data_size = __in_ms.ms_tpdv_data_size;
+	size_t _len_seal_data = _tmp_tpdv_data_size;
+	unsigned char* _in_seal_data = NULL;
+	uint32_t _in_retval;
+
+	CHECK_UNIQUE_POINTER(_tmp_seal_data, _len_seal_data);
+
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+
+	if (_tmp_seal_data != NULL && _len_seal_data != 0) {
+		if ( _len_seal_data % sizeof(*_tmp_seal_data) != 0)
+		{
+			status = SGX_ERROR_INVALID_PARAMETER;
+			goto err;
+		}
+		_in_seal_data = (unsigned char*)malloc(_len_seal_data);
+		if (_in_seal_data == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		if (memcpy_s(_in_seal_data, _len_seal_data, _tmp_seal_data, _len_seal_data)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+
+	}
+	_in_retval = e1_get_asset_size(_in_seal_data, __in_ms.ms_indice, _tmp_tpdv_data_size);
+	if (memcpy_verw_s(&ms->ms_retval, sizeof(ms->ms_retval), &_in_retval, sizeof(_in_retval))) {
+		status = SGX_ERROR_UNEXPECTED;
+		goto err;
+	}
+
+err:
+	if (_in_seal_data) free(_in_seal_data);
+	return status;
+}
+
 static sgx_status_t SGX_CDECL sgx_e1_extract_asset(void* pms)
 {
 	CHECK_REF_POINTER(pms, sizeof(ms_e1_extract_asset_t));
@@ -587,10 +650,10 @@ static sgx_status_t SGX_CDECL sgx_e1_extract_asset(void* pms)
 		return SGX_ERROR_UNEXPECTED;
 	}
 	sgx_status_t status = SGX_SUCCESS;
-	unsigned char* _tmp_file_name = __in_ms.ms_file_name;
-	size_t _tmp_file_name_len = __in_ms.ms_file_name_len;
-	size_t _len_file_name = _tmp_file_name_len;
-	unsigned char* _in_file_name = NULL;
+	unsigned char* _tmp_sealed_data = __in_ms.ms_sealed_data;
+	uint32_t _tmp_sealed_data_size = __in_ms.ms_sealed_data_size;
+	size_t _len_sealed_data = _tmp_sealed_data_size;
+	unsigned char* _in_sealed_data = NULL;
 	unsigned char* _tmp_author = __in_ms.ms_author;
 	size_t _tmp_author_len = __in_ms.ms_author_len;
 	size_t _len_author = _tmp_author_len;
@@ -599,29 +662,39 @@ static sgx_status_t SGX_CDECL sgx_e1_extract_asset(void* pms)
 	size_t _tmp_password_len = __in_ms.ms_password_len;
 	size_t _len_password = _tmp_password_len;
 	unsigned char* _in_password = NULL;
+	unsigned char* _tmp_unsealed_data = __in_ms.ms_unsealed_data;
+	uint32_t _tmp_asset_size = __in_ms.ms_asset_size;
+	size_t _len_unsealed_data = _tmp_asset_size;
+	unsigned char* _in_unsealed_data = NULL;
+	unsigned char* _tmp_asset_name = __in_ms.ms_asset_name;
+	size_t _tmp_asset_name_len = __in_ms.ms_asset_name_len;
+	size_t _len_asset_name = _tmp_asset_name_len;
+	unsigned char* _in_asset_name = NULL;
 
-	CHECK_UNIQUE_POINTER(_tmp_file_name, _len_file_name);
+	CHECK_UNIQUE_POINTER(_tmp_sealed_data, _len_sealed_data);
 	CHECK_UNIQUE_POINTER(_tmp_author, _len_author);
 	CHECK_UNIQUE_POINTER(_tmp_password, _len_password);
+	CHECK_UNIQUE_POINTER(_tmp_unsealed_data, _len_unsealed_data);
+	CHECK_UNIQUE_POINTER(_tmp_asset_name, _len_asset_name);
 
 	//
 	// fence after pointer checks
 	//
 	sgx_lfence();
 
-	if (_tmp_file_name != NULL && _len_file_name != 0) {
-		if ( _len_file_name % sizeof(*_tmp_file_name) != 0)
+	if (_tmp_sealed_data != NULL && _len_sealed_data != 0) {
+		if ( _len_sealed_data % sizeof(*_tmp_sealed_data) != 0)
 		{
 			status = SGX_ERROR_INVALID_PARAMETER;
 			goto err;
 		}
-		_in_file_name = (unsigned char*)malloc(_len_file_name);
-		if (_in_file_name == NULL) {
+		_in_sealed_data = (unsigned char*)malloc(_len_sealed_data);
+		if (_in_sealed_data == NULL) {
 			status = SGX_ERROR_OUT_OF_MEMORY;
 			goto err;
 		}
 
-		if (memcpy_s(_in_file_name, _len_file_name, _tmp_file_name, _len_file_name)) {
+		if (memcpy_s(_in_sealed_data, _len_sealed_data, _tmp_sealed_data, _len_sealed_data)) {
 			status = SGX_ERROR_UNEXPECTED;
 			goto err;
 		}
@@ -663,12 +736,52 @@ static sgx_status_t SGX_CDECL sgx_e1_extract_asset(void* pms)
 		}
 
 	}
-	e1_extract_asset(_in_file_name, _in_author, _in_password, __in_ms.ms_indice, _tmp_file_name_len, _tmp_author_len, _tmp_password_len);
+	if (_tmp_unsealed_data != NULL && _len_unsealed_data != 0) {
+		if ( _len_unsealed_data % sizeof(*_tmp_unsealed_data) != 0)
+		{
+			status = SGX_ERROR_INVALID_PARAMETER;
+			goto err;
+		}
+		if ((_in_unsealed_data = (unsigned char*)malloc(_len_unsealed_data)) == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		memset((void*)_in_unsealed_data, 0, _len_unsealed_data);
+	}
+	if (_tmp_asset_name != NULL && _len_asset_name != 0) {
+		if ( _len_asset_name % sizeof(*_tmp_asset_name) != 0)
+		{
+			status = SGX_ERROR_INVALID_PARAMETER;
+			goto err;
+		}
+		if ((_in_asset_name = (unsigned char*)malloc(_len_asset_name)) == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		memset((void*)_in_asset_name, 0, _len_asset_name);
+	}
+	e1_extract_asset(_in_sealed_data, _in_author, _in_password, __in_ms.ms_indice, _tmp_sealed_data_size, _tmp_author_len, _tmp_password_len, _in_unsealed_data, _in_asset_name, _tmp_asset_size, _tmp_asset_name_len);
+	if (_in_unsealed_data) {
+		if (memcpy_verw_s(_tmp_unsealed_data, _len_unsealed_data, _in_unsealed_data, _len_unsealed_data)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+	}
+	if (_in_asset_name) {
+		if (memcpy_verw_s(_tmp_asset_name, _len_asset_name, _in_asset_name, _len_asset_name)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+	}
 
 err:
-	if (_in_file_name) free(_in_file_name);
+	if (_in_sealed_data) free(_in_sealed_data);
 	if (_in_author) free(_in_author);
 	if (_in_password) free(_in_password);
+	if (_in_unsealed_data) free(_in_unsealed_data);
+	if (_in_asset_name) free(_in_asset_name);
 	return status;
 }
 
@@ -685,10 +798,6 @@ static sgx_status_t SGX_CDECL sgx_e1_compare_hash(void* pms)
 		return SGX_ERROR_UNEXPECTED;
 	}
 	sgx_status_t status = SGX_SUCCESS;
-	unsigned char* _tmp_file_name = __in_ms.ms_file_name;
-	size_t _tmp_FILE_NAME_SIZE = __in_ms.ms_FILE_NAME_SIZE;
-	size_t _len_file_name = _tmp_FILE_NAME_SIZE;
-	unsigned char* _in_file_name = NULL;
 	unsigned char* _tmp_author = __in_ms.ms_author;
 	size_t _tmp_AUTHOR_SIZE = __in_ms.ms_AUTHOR_SIZE;
 	size_t _len_author = _tmp_AUTHOR_SIZE;
@@ -702,7 +811,6 @@ static sgx_status_t SGX_CDECL sgx_e1_compare_hash(void* pms)
 	size_t _len_hash = _tmp_hash_size;
 	unsigned char* _in_hash = NULL;
 
-	CHECK_UNIQUE_POINTER(_tmp_file_name, _len_file_name);
 	CHECK_UNIQUE_POINTER(_tmp_author, _len_author);
 	CHECK_UNIQUE_POINTER(_tmp_password, _len_password);
 	CHECK_UNIQUE_POINTER(_tmp_hash, _len_hash);
@@ -712,24 +820,6 @@ static sgx_status_t SGX_CDECL sgx_e1_compare_hash(void* pms)
 	//
 	sgx_lfence();
 
-	if (_tmp_file_name != NULL && _len_file_name != 0) {
-		if ( _len_file_name % sizeof(*_tmp_file_name) != 0)
-		{
-			status = SGX_ERROR_INVALID_PARAMETER;
-			goto err;
-		}
-		_in_file_name = (unsigned char*)malloc(_len_file_name);
-		if (_in_file_name == NULL) {
-			status = SGX_ERROR_OUT_OF_MEMORY;
-			goto err;
-		}
-
-		if (memcpy_s(_in_file_name, _len_file_name, _tmp_file_name, _len_file_name)) {
-			status = SGX_ERROR_UNEXPECTED;
-			goto err;
-		}
-
-	}
 	if (_tmp_author != NULL && _len_author != 0) {
 		if ( _len_author % sizeof(*_tmp_author) != 0)
 		{
@@ -772,22 +862,22 @@ static sgx_status_t SGX_CDECL sgx_e1_compare_hash(void* pms)
 			status = SGX_ERROR_INVALID_PARAMETER;
 			goto err;
 		}
-		_in_hash = (unsigned char*)malloc(_len_hash);
-		if (_in_hash == NULL) {
+		if ((_in_hash = (unsigned char*)malloc(_len_hash)) == NULL) {
 			status = SGX_ERROR_OUT_OF_MEMORY;
 			goto err;
 		}
 
-		if (memcpy_s(_in_hash, _len_hash, _tmp_hash, _len_hash)) {
+		memset((void*)_in_hash, 0, _len_hash);
+	}
+	e1_compare_hash(_in_author, _in_password, __in_ms.ms_indice, _tmp_AUTHOR_SIZE, _tmp_PW_SIZE, _in_hash, _tmp_hash_size);
+	if (_in_hash) {
+		if (memcpy_verw_s(_tmp_hash, _len_hash, _in_hash, _len_hash)) {
 			status = SGX_ERROR_UNEXPECTED;
 			goto err;
 		}
-
 	}
-	e1_compare_hash(_in_file_name, _in_author, _in_password, __in_ms.ms_indice, _in_hash, __in_ms.ms_hash_type, _tmp_FILE_NAME_SIZE, _tmp_AUTHOR_SIZE, _tmp_PW_SIZE, _tmp_hash_size);
 
 err:
-	if (_in_file_name) free(_in_file_name);
 	if (_in_author) free(_in_author);
 	if (_in_password) free(_in_password);
 	if (_in_hash) free(_in_hash);
@@ -796,15 +886,16 @@ err:
 
 SGX_EXTERNC const struct {
 	size_t nr_ecall;
-	struct {void* ecall_addr; uint8_t is_priv; uint8_t is_switchless;} ecall_table[7];
+	struct {void* ecall_addr; uint8_t is_priv; uint8_t is_switchless;} ecall_table[8];
 } g_ecall_table = {
-	7,
+	8,
 	{
 		{(void*)(uintptr_t)sgx_e1_get_sealed_data_size, 0, 0},
 		{(void*)(uintptr_t)sgx_e1_get_unsealed_data_size, 0, 0},
 		{(void*)(uintptr_t)sgx_e1_create_tpdv, 0, 0},
 		{(void*)(uintptr_t)sgx_e1_add_asset, 0, 0},
 		{(void*)(uintptr_t)sgx_e1_list_assets, 0, 0},
+		{(void*)(uintptr_t)sgx_e1_get_asset_size, 0, 0},
 		{(void*)(uintptr_t)sgx_e1_extract_asset, 0, 0},
 		{(void*)(uintptr_t)sgx_e1_compare_hash, 0, 0},
 	}
@@ -812,11 +903,11 @@ SGX_EXTERNC const struct {
 
 SGX_EXTERNC const struct {
 	size_t nr_ocall;
-	uint8_t entry_table[1][7];
+	uint8_t entry_table[1][8];
 } g_dyn_entry_table = {
 	1,
 	{
-		{0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, },
 	}
 };
 

@@ -245,8 +245,6 @@ void e1_add_asset(unsigned char *tpdv_data, unsigned char *author, unsigned char
     free(temp_buf);
     free(new_tpdv_data);
     free(temp_buf2);
-
-
 }
 
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
@@ -320,22 +318,98 @@ void e1_list_assets(unsigned char * file_name, unsigned char *sealed_data, unsig
 // =================================================================== 4 ===================================================================
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
 
-void e1_extract_asset(unsigned char *file_name, unsigned char *author, unsigned char *password, int indice, size_t file_name_len, size_t author_len, size_t password_len) {
-    printf("ENCLAVE: Extracting asset %d from TPDV: %s\n", indice, file_name);
+uint32_t e1_get_asset_size(unsigned char *sealed_data, int indice, uint32_t sealed_data_size){
+    unsigned char *temp_buf = (unsigned char *)malloc(sealed_data_size);
+    if (temp_buf == NULL) {
+        printf("ENCLAVE: Error allocating memory for sealed data\n");
+        return 0;
+    }
+
+    unseal_data(sealed_data, sealed_data_size, temp_buf);
+
+    // Get the number of assets
+    unsigned char num_assets = temp_buf[AUTHOR_SIZE + PW_SIZE];
+
+    if (indice > num_assets) {
+        printf("ENCLAVE: Asset not found\n");
+        return 0;
+    }
+
+    uint32_t pointer = HEADER_SIZE; // Skip the header
+    uint32_t asset_size = 0;
+    for (int i = 1; i <= indice; i++) {
+        pointer += 20; // Skip the asset name
+        unsigned char asset_size_bytes[4] = {0};
+
+        asset_size = 0;
+        asset_size |= (uint32_t)temp_buf[pointer++] << 24;
+        asset_size |= (uint32_t)temp_buf[pointer++] << 16;
+        asset_size |= (uint32_t)temp_buf[pointer++] << 8;
+        asset_size |= (uint32_t)temp_buf[pointer++];
+
+        pointer += asset_size;
+    }
+
+    free(temp_buf);
+
+    return asset_size;
+}
+
+void e1_extract_asset(unsigned char *sealed_data, unsigned char *author, unsigned char *password, int indice, uint32_t sealed_data_size, size_t author_len, size_t password_len, unsigned char *unsealed_data, unsigned char* asset_name, uint32_t asset_size, size_t asset_name_len) {
+    printf("ENCLAVE: Extracting asset %d\n", indice);
+
+    unsigned char *temp_buf = (unsigned char *)malloc(sealed_data_size);
+    if (temp_buf == NULL) {
+        printf("ENCLAVE: Error allocating memory for sealed data\n");
+        return;
+    }
+
+    unseal_data(sealed_data, sealed_data_size, temp_buf);
+
+    // Check credentials
+    unsigned char actual_author[AUTHOR_SIZE] = {0};
+    unsigned char actual_password[PW_SIZE] = {0};
+    memcpy(actual_author, temp_buf, AUTHOR_SIZE);
+    memcpy(actual_password, temp_buf + AUTHOR_SIZE, PW_SIZE);
+
+    if (!check_credentials(actual_password, actual_author, password, author)) {
+        printf("ENCLAVE: Invalid credentials\n");
+        return;
+    }
+
+    
+
+    uint32_t pointer = HEADER_SIZE; // Skip the header
+    uint32_t current_asset_size = 0;
+    for (int i = 1; i <= indice; i++) {
+        pointer += 20; // Skip the asset name
+        unsigned char asset_size_bytes[4] = {0};
+
+        current_asset_size = 0;
+        current_asset_size |= (uint32_t)temp_buf[pointer++] << 24;
+        current_asset_size |= (uint32_t)temp_buf[pointer++] << 16;
+        current_asset_size |= (uint32_t)temp_buf[pointer++] << 8;
+        current_asset_size |= (uint32_t)temp_buf[pointer++];
+
+        if (i != indice)
+            pointer += current_asset_size;
+    }
+
+    // Get the asset name
+    memcpy(asset_name, temp_buf + pointer - 24, asset_name_len);
+    // Get the asset content
+    memcpy(unsealed_data, temp_buf + pointer, asset_size);
+    free(temp_buf);
 }
 
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
 // =================================================================== 5 ===================================================================
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
 
-void e1_compare_hash(unsigned char *file_name, unsigned char *author, unsigned char *password, int indice, unsigned char *hash, int hash_type, size_t file_name_len, size_t author_len, size_t password_len, size_t hash_len) {
-    printf("ENCLAVE: Comparing hash of asset %d from TPDV: %s\n", indice, file_name);
+void e1_compare_hash(unsigned char *author, unsigned char *password, int indice, size_t author_len, size_t password_len, unsigned char *hash, size_t hash_len) {
+    printf("ENCLAVE: Comparing hash of asset %d\n", indice);
 
-    if (hash_type == 1) {
-        printf("ENCLAVE: Hash type: MD5\n");
-    } else {
-        printf("ENCLAVE: Hash type: SHA256\n");
-    }
+
 }
 
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#

@@ -197,7 +197,7 @@ int asset_exists(unsigned char *asset_name) {
         }
         path[9 + i] = asset_name[i];
     }
-    
+
     FILE *file = fopen((char *)path, "rb");
     if (file) {
         fclose(file);
@@ -281,7 +281,6 @@ void load_sealed_data(unsigned char *file_name, unsigned char *sealed_data, size
         fread(sealed_data, 1, sealed_data_size, file);
         fclose(file);
     }
-
 }
 
 void load_asset(unsigned char *asset_name, unsigned char *asset, size_t asset_size) {
@@ -301,6 +300,23 @@ void load_asset(unsigned char *asset_name, unsigned char *asset, size_t asset_si
     }
 }
 
+void save_asset(unsigned char *asset_name, unsigned char *asset_content, size_t asset_size) {
+    char path[FILE_NAME_SIZE + 14] = "./Extractions/";
+
+    for (int i = 0; i < FILE_NAME_SIZE; i++) {
+        if (asset_name[i] == '\0') {
+            break;
+        }
+        path[14 + i] = asset_name[i];
+    }
+
+    FILE *file = fopen((char *)path, "wb");
+    if (file) {
+        fwrite(asset_content, 1, asset_size, file);
+        fclose(file);
+    }
+}
+
 /*
  * Application entry
  */
@@ -314,17 +330,14 @@ int SGX_CDECL main(int argc, char *argv[]) {
     int terminar = 0;
     int opcao = -1;
     unsigned char file_name[FILE_NAME_SIZE] = {};
-    unsigned char path[FILE_NAME_SIZE + 5] = {};
     unsigned char author[AUTHOR_SIZE] = {};
     unsigned char password[PW_SIZE] = {};
     unsigned char assets = '\0';
-    unsigned char nonce[NONCE_SIZE] = {};
     unsigned char asset_name[FILE_NAME_SIZE] = {};
     unsigned char *asset;
-    size_t asset_size = 0;
+    uint32_t asset_size = 0;
     int indice = 0;
     unsigned char hash[32] = {};
-    int hash_type = 0;
     size_t hash_size = 0;
     uint32_t sealed_data_size = 0;
     uint32_t unsealed_data_size = 0;
@@ -351,13 +364,11 @@ int SGX_CDECL main(int argc, char *argv[]) {
         memset(author, 0, AUTHOR_SIZE);
         memset(password, 0, PW_SIZE);
         assets = '\0';
-        memset(nonce, 0, NONCE_SIZE);
         memset(asset_name, 0, FILE_NAME_SIZE);
         asset = NULL;
         asset_size = 0;
         indice = 0;
         memset(hash, 0, 32);
-        hash_type = 0;
         hash_size = 0;
         sealed_data_size = 0;
         unsealed_data_size = 0;
@@ -437,12 +448,6 @@ int SGX_CDECL main(int argc, char *argv[]) {
                 return 1;
             }
 
-            // DEBUG:
-            // printf("Sealed data: ");
-            // for (int i = 0; i < sealed_data_size; i++) {
-            //     printf("%02x", sealed_data[i]);
-            // }
-
             // Guardar o ficheiro
             save_sealed_data(file_name, sealed_data, sealed_data_size);
             free(sealed_data);
@@ -494,7 +499,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
 
             // Verificar se o ficheiro existe
             if (!TPDV_exists(file_name)) {
-                printf("Operação cancelada: o ficheiro não existe..\n");
+                printf("Operação cancelada: o ficheiro não existe.\n");
                 break;
             }
 
@@ -514,8 +519,6 @@ int SGX_CDECL main(int argc, char *argv[]) {
             asset = (unsigned char *)malloc(asset_size);
             load_asset(asset_name, asset, asset_size);
 
-            
-
             // Alocar memoria para a sealed data = tamanho do TPDV (unsealed) + tamanho do asset
             if ((ret = e1_get_unsealed_data_size(global_eid1, &unsealed_data_size, tpdv_data, tpdv_data_size)) != SGX_SUCCESS) {
                 print_error_message(ret, "e1_get_unsealed_data_size");
@@ -523,7 +526,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
             }
 
             // total_zise é a variavel responsavel por guardar o tamanho do TPDV (unsealed) mais o asset sem estarem sealed
-            total_size = unsealed_data_size + asset_size + 20 + 4; // 20 para o nome do asset e 4 para o tamanho do asset
+            total_size = unsealed_data_size + asset_size + FILE_NAME_SIZE + 4; // 20 para o nome do asset e 4 para o tamanho do asset
 
             if ((ret = e1_get_sealed_data_size(global_eid1, &sealed_data_size, total_size)) != SGX_SUCCESS) {
                 print_error_message(ret, "e1_get_sealed_data_size");
@@ -531,9 +534,9 @@ int SGX_CDECL main(int argc, char *argv[]) {
             }
 
             sealed_data = (unsigned char *)malloc(sealed_data_size);
-            
+
             // ecall para adicionar o asset
-            if ((ret = e1_add_asset(global_eid1, tpdv_data, author, password, asset_name, asset, unsealed_data_size, tpdv_data_size,  AUTHOR_SIZE, PW_SIZE, FILE_NAME_SIZE, asset_size, sealed_data, sealed_data_size)) != SGX_SUCCESS) {
+            if ((ret = e1_add_asset(global_eid1, tpdv_data, author, password, asset_name, asset, unsealed_data_size, tpdv_data_size, AUTHOR_SIZE, PW_SIZE, FILE_NAME_SIZE, asset_size, sealed_data, sealed_data_size)) != SGX_SUCCESS) {
                 print_error_message(ret, "e1_add_asset");
                 return 1;
             }
@@ -583,7 +586,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
 
             // Verificar se o ficheiro existe
             if (!TPDV_exists(file_name)) {
-                printf("Operação cancelada: o ficheiro não existe..\n");
+                printf("Operação cancelada: o ficheiro não existe.\n");
                 break;
             }
 
@@ -603,7 +606,6 @@ int SGX_CDECL main(int argc, char *argv[]) {
                 return 1;
             }
 
-
             break;
 
         // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
@@ -612,7 +614,6 @@ int SGX_CDECL main(int argc, char *argv[]) {
         case '4':
 
             // 4 - Extrair um asset
-            // TODO: decidir se se vai extrair o asset pelo indice ou pelo nome (indice é mais fácil de implementar)
 
             printf("Introduza o nome do ficheiro TPDV: ");
             fgets((char *)file_name, FILE_NAME_SIZE, stdin);
@@ -641,11 +642,45 @@ int SGX_CDECL main(int argc, char *argv[]) {
                 }
             }
 
+            printf("Introduza o índice do asset: ");
+            scanf("%d", &indice);
+            getchar();
+            printf("\n");
+
+            // Verificar se o ficheiro existe
+            if (!TPDV_exists(file_name)) {
+                printf("Operação cancelada: o ficheiro não existe.\n");
+                break;
+            }
+
+            // Carregar o TPDV
+            tpdv_data_size = get_TPDV_size(file_name);
+            tpdv_data = (unsigned char *)malloc(tpdv_data_size);
+            load_sealed_data(file_name, tpdv_data, tpdv_data_size);
+
+            // Obter o tamanho do asset (unsealed)
+            if ((ret = e1_get_asset_size(global_eid1, &asset_size, tpdv_data, indice, tpdv_data_size)) != SGX_SUCCESS) {
+                print_error_message(ret, "e1_get_asset_size");
+                return 1;
+            }
+
+            unsealed_data = (unsigned char *)malloc(asset_size);
+
             // ecall para extrair o asset
-            if ((ret = e1_extract_asset(global_eid1, file_name, author, password, indice, FILE_NAME_SIZE, AUTHOR_SIZE, PW_SIZE)) != SGX_SUCCESS) {
+            if ((ret = e1_extract_asset(global_eid1, tpdv_data, author, password, indice, tpdv_data_size, AUTHOR_SIZE, PW_SIZE, unsealed_data, asset_name, asset_size, FILE_NAME_SIZE)) != SGX_SUCCESS) {
                 print_error_message(ret, "e1_extract_asset");
                 return 1;
             }
+
+            // // DEBUG:
+            // printf("Asset name: %s\n", asset_name);
+            // printf("Content: %s\n", unsealed_data);
+
+            // Guardar o asset
+            save_asset(asset_name, unsealed_data, asset_size);
+
+            free(tpdv_data);
+            free(unsealed_data);
 
             break;
 
@@ -686,22 +721,8 @@ int SGX_CDECL main(int argc, char *argv[]) {
             scanf("%d", &indice);
             getchar();
 
-            printf("Introduza o hash a comparar: ");
-            fgets((char *)hash, 32, stdin);
-            for (int j = 0; j < 32; j++) {
-                if (hash[j] == '\n') {
-                    hash[j] = '\0';
-                    break;
-                }
-            }
-
-            printf("Escreva 1 para comparar com o hash MD5 ou 2 para comparar com o hash SHA256: ");
-            scanf("%d", &hash_type);
-            getchar();
-            hash_size = 16 ? hash_type == 1 : 32;
-
             // ecall para comparar o hash
-            if ((ret = e1_compare_hash(global_eid1, file_name, author, password, indice, hash, hash_type, FILE_NAME_SIZE, AUTHOR_SIZE, PW_SIZE, hash_size)) != SGX_SUCCESS) {
+            if ((ret = e1_compare_hash(global_eid1, author, password, indice, AUTHOR_SIZE, PW_SIZE, hash, hash_size)) != SGX_SUCCESS) {
                 print_error_message(ret, "e1_compare_hash");
                 return 1;
             }

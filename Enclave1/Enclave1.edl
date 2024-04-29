@@ -73,24 +73,29 @@ enclave {
                                    uint32_t sealed_data_size,
                                    size_t author_len,
                                    size_t password_len);
+
+        public uint32_t e1_get_asset_size([in, size=tpdv_data_size] unsigned char *seal_data,
+                                          int indice,
+                                          uint32_t tpdv_data_size);
         
-        public void e1_extract_asset([in, size=file_name_len] unsigned char *file_name,
+        public void e1_extract_asset([in, size=sealed_data_size] unsigned char *sealed_data,
                                      [in, size=author_len] unsigned char *author,
                                      [in, size=password_len] unsigned char *password,
                                      int indice,
-                                     size_t file_name_len,
+                                     uint32_t sealed_data_size,
                                      size_t author_len,
-                                     size_t password_len);
+                                     size_t password_len,
+                                     [out, size=asset_size] unsigned char *unsealed_data,
+                                     [out, size=asset_name_len] unsigned char *asset_name,
+                                     uint32_t asset_size,
+                                     size_t asset_name_len);
         
-        public void e1_compare_hash([in, size=FILE_NAME_SIZE] unsigned char *file_name,
-                                    [in, size=AUTHOR_SIZE] unsigned char *author,
+        public void e1_compare_hash([in, size=AUTHOR_SIZE] unsigned char *author,
                                     [in, size=PW_SIZE] unsigned char *password,
                                     int indice,
-                                    [in, size=hash_size] unsigned char *hash,
-                                    int hash_type,
-                                    size_t FILE_NAME_SIZE,
                                     size_t AUTHOR_SIZE,
                                     size_t PW_SIZE,
+                                    [out, size=hash_size] unsigned char *hash,
                                     size_t hash_size);
     };
 

@@ -48,26 +48,34 @@ typedef struct ms_e1_list_assets_t {
 	size_t ms_password_len;
 } ms_e1_list_assets_t;
 
+typedef struct ms_e1_get_asset_size_t {
+	uint32_t ms_retval;
+	unsigned char* ms_seal_data;
+	int ms_indice;
+	uint32_t ms_tpdv_data_size;
+} ms_e1_get_asset_size_t;
+
 typedef struct ms_e1_extract_asset_t {
-	unsigned char* ms_file_name;
+	unsigned char* ms_sealed_data;
 	unsigned char* ms_author;
 	unsigned char* ms_password;
 	int ms_indice;
-	size_t ms_file_name_len;
+	uint32_t ms_sealed_data_size;
 	size_t ms_author_len;
 	size_t ms_password_len;
+	unsigned char* ms_unsealed_data;
+	unsigned char* ms_asset_name;
+	uint32_t ms_asset_size;
+	size_t ms_asset_name_len;
 } ms_e1_extract_asset_t;
 
 typedef struct ms_e1_compare_hash_t {
-	unsigned char* ms_file_name;
 	unsigned char* ms_author;
 	unsigned char* ms_password;
 	int ms_indice;
-	unsigned char* ms_hash;
-	int ms_hash_type;
-	size_t ms_FILE_NAME_SIZE;
 	size_t ms_AUTHOR_SIZE;
 	size_t ms_PW_SIZE;
+	unsigned char* ms_hash;
 	size_t ms_hash_size;
 } ms_e1_compare_hash_t;
 
@@ -164,36 +172,49 @@ sgx_status_t e1_list_assets(sgx_enclave_id_t eid, unsigned char* file_name, unsi
 	return status;
 }
 
-sgx_status_t e1_extract_asset(sgx_enclave_id_t eid, unsigned char* file_name, unsigned char* author, unsigned char* password, int indice, size_t file_name_len, size_t author_len, size_t password_len)
+sgx_status_t e1_get_asset_size(sgx_enclave_id_t eid, uint32_t* retval, unsigned char* seal_data, int indice, uint32_t tpdv_data_size)
 {
 	sgx_status_t status;
-	ms_e1_extract_asset_t ms;
-	ms.ms_file_name = file_name;
-	ms.ms_author = author;
-	ms.ms_password = password;
+	ms_e1_get_asset_size_t ms;
+	ms.ms_seal_data = seal_data;
 	ms.ms_indice = indice;
-	ms.ms_file_name_len = file_name_len;
-	ms.ms_author_len = author_len;
-	ms.ms_password_len = password_len;
+	ms.ms_tpdv_data_size = tpdv_data_size;
 	status = sgx_ecall(eid, 5, &ocall_table_Enclave1, &ms);
+	if (status == SGX_SUCCESS && retval) *retval = ms.ms_retval;
 	return status;
 }
 
-sgx_status_t e1_compare_hash(sgx_enclave_id_t eid, unsigned char* file_name, unsigned char* author, unsigned char* password, int indice, unsigned char* hash, int hash_type, size_t FILE_NAME_SIZE, size_t AUTHOR_SIZE, size_t PW_SIZE, size_t hash_size)
+sgx_status_t e1_extract_asset(sgx_enclave_id_t eid, unsigned char* sealed_data, unsigned char* author, unsigned char* password, int indice, uint32_t sealed_data_size, size_t author_len, size_t password_len, unsigned char* unsealed_data, unsigned char* asset_name, uint32_t asset_size, size_t asset_name_len)
 {
 	sgx_status_t status;
-	ms_e1_compare_hash_t ms;
-	ms.ms_file_name = file_name;
+	ms_e1_extract_asset_t ms;
+	ms.ms_sealed_data = sealed_data;
 	ms.ms_author = author;
 	ms.ms_password = password;
 	ms.ms_indice = indice;
-	ms.ms_hash = hash;
-	ms.ms_hash_type = hash_type;
-	ms.ms_FILE_NAME_SIZE = FILE_NAME_SIZE;
+	ms.ms_sealed_data_size = sealed_data_size;
+	ms.ms_author_len = author_len;
+	ms.ms_password_len = password_len;
+	ms.ms_unsealed_data = unsealed_data;
+	ms.ms_asset_name = asset_name;
+	ms.ms_asset_size = asset_size;
+	ms.ms_asset_name_len = asset_name_len;
+	status = sgx_ecall(eid, 6, &ocall_table_Enclave1, &ms);
+	return status;
+}
+
+sgx_status_t e1_compare_hash(sgx_enclave_id_t eid, unsigned char* author, unsigned char* password, int indice, size_t AUTHOR_SIZE, size_t PW_SIZE, unsigned char* hash, size_t hash_size)
+{
+	sgx_status_t status;
+	ms_e1_compare_hash_t ms;
+	ms.ms_author = author;
+	ms.ms_password = password;
+	ms.ms_indice = indice;
 	ms.ms_AUTHOR_SIZE = AUTHOR_SIZE;
 	ms.ms_PW_SIZE = PW_SIZE;
+	ms.ms_hash = hash;
 	ms.ms_hash_size = hash_size;
-	status = sgx_ecall(eid, 6, &ocall_table_Enclave1, &ms);
+	status = sgx_ecall(eid, 7, &ocall_table_Enclave1, &ms);
 	return status;
 }
 
