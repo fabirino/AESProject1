@@ -334,9 +334,9 @@ void e1_list_assets(unsigned char * file_name, unsigned char *sealed_data, unsig
     // Get the number of assets
     unsigned char num_assets = temp_buf[AUTHOR_SIZE + PW_SIZE];
 
-    printf("ENCLAVE: Name of the TPDV: %s\n", file_name);
-    printf("ENCLAVE: Author: %s\n", actual_author);
-    printf("ENCLAVE: Number of assets: %d\n", num_assets);
+    printf("ENCLAVE: Nome do TPDV -> \'%s\'\n", file_name);
+    printf("ENCLAVE: Autor -> %s\n", actual_author);
+    printf("ENCLAVE: Número de Assets -> %d\n", num_assets);
     printf("\n");
 
     uint32_t pointer = HEADER_SIZE; // Skip the header
