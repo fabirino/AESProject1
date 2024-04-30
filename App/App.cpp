@@ -341,8 +341,8 @@ int SGX_CDECL main(int argc, char *argv[]) {
     unsigned char *asset;
     uint32_t asset_size = 0;
     int indice = 0;
+    unsigned char hash_string[65] = {}; // 64 bytes for the sha256 hash + 1 for the null terminator
     unsigned char hash[32] = {};
-    size_t hash_size = 0;
     uint32_t sealed_data_size = 0;
     uint32_t unsealed_data_size = 0;
     uint32_t tpdv_data_size = 0;
@@ -373,8 +373,8 @@ int SGX_CDECL main(int argc, char *argv[]) {
         asset = NULL;
         asset_size = 0;
         indice = 0;
+        memset(hash_string, 0, 65);
         memset(hash, 0, 32);
-        hash_size = 0;
         sealed_data_size = 0;
         unsealed_data_size = 0;
         sealed_data = NULL;
@@ -678,10 +678,6 @@ int SGX_CDECL main(int argc, char *argv[]) {
                 return 1;
             }
 
-            // // DEBUG:
-            // printf("Asset name: %s\n", asset_name);
-            // printf("Content: %s\n", unsealed_data);
-
             // Guardar o asset
             save_asset(asset_name, unsealed_data, asset_size);
 
@@ -727,11 +723,30 @@ int SGX_CDECL main(int argc, char *argv[]) {
             scanf("%d", &indice);
             getchar();
 
+            printf("Introduza o hash do asset: "); // read 2 bytes at a time because the input will be in hex
+            fgets((char *)hash_string, 65, stdin);
+            for (int i = 0; i < 32; i++) {
+                sscanf((const char *)hash_string + 2 * i, "%2hhx", &hash[i]);
+            }
+
+            // Verificar se o TPDV existe
+            if (!TPDV_exists(file_name)) {
+                printf("Operação cancelada: o ficheiro não existe.\n");
+                break;
+            }
+
+            // Ler o TPDV
+            tpdv_data_size = get_TPDV_size(file_name);
+            tpdv_data = (unsigned char *)malloc(tpdv_data_size);
+            load_sealed_data(file_name, tpdv_data, tpdv_data_size);
+
             // ecall para comparar o hash
-            if ((ret = e1_compare_hash(global_eid1, author, password, indice, AUTHOR_SIZE, PW_SIZE, hash, hash_size)) != SGX_SUCCESS) {
+            if ((ret = e1_compare_hash(global_eid1, tpdv_data, author, password, indice, hash, tpdv_data_size, AUTHOR_SIZE, PW_SIZE, 32)) != SGX_SUCCESS) {
                 print_error_message(ret, "e1_compare_hash");
                 return 1;
             }
+
+            free(tpdv_data);
 
             break;
 
@@ -798,6 +813,9 @@ int SGX_CDECL main(int argc, char *argv[]) {
             // Guardar o ficheiro
             save_sealed_data(file_name, sealed_data, tpdv_data_size);
 
+            free(tpdv_data);
+            free(sealed_data);
+
             break;
 
         // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
@@ -807,6 +825,8 @@ int SGX_CDECL main(int argc, char *argv[]) {
             // 7 - Clonar o conteudo do TPDV
 
             break;
+        // case '\n':
+        //     continue;
         case '0':
             terminar = 1;
             break;

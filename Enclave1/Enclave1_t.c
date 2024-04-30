@@ -96,12 +96,14 @@ typedef struct ms_e1_extract_asset_t {
 } ms_e1_extract_asset_t;
 
 typedef struct ms_e1_compare_hash_t {
+	unsigned char* ms_sealed_data;
 	unsigned char* ms_author;
 	unsigned char* ms_password;
 	int ms_indice;
+	unsigned char* ms_hash;
+	uint32_t ms_sealed_data_size;
 	size_t ms_AUTHOR_SIZE;
 	size_t ms_PW_SIZE;
-	unsigned char* ms_hash;
 	size_t ms_hash_size;
 } ms_e1_compare_hash_t;
 
@@ -811,6 +813,10 @@ static sgx_status_t SGX_CDECL sgx_e1_compare_hash(void* pms)
 		return SGX_ERROR_UNEXPECTED;
 	}
 	sgx_status_t status = SGX_SUCCESS;
+	unsigned char* _tmp_sealed_data = __in_ms.ms_sealed_data;
+	uint32_t _tmp_sealed_data_size = __in_ms.ms_sealed_data_size;
+	size_t _len_sealed_data = _tmp_sealed_data_size;
+	unsigned char* _in_sealed_data = NULL;
 	unsigned char* _tmp_author = __in_ms.ms_author;
 	size_t _tmp_AUTHOR_SIZE = __in_ms.ms_AUTHOR_SIZE;
 	size_t _len_author = _tmp_AUTHOR_SIZE;
@@ -824,6 +830,7 @@ static sgx_status_t SGX_CDECL sgx_e1_compare_hash(void* pms)
 	size_t _len_hash = _tmp_hash_size;
 	unsigned char* _in_hash = NULL;
 
+	CHECK_UNIQUE_POINTER(_tmp_sealed_data, _len_sealed_data);
 	CHECK_UNIQUE_POINTER(_tmp_author, _len_author);
 	CHECK_UNIQUE_POINTER(_tmp_password, _len_password);
 	CHECK_UNIQUE_POINTER(_tmp_hash, _len_hash);
@@ -833,6 +840,24 @@ static sgx_status_t SGX_CDECL sgx_e1_compare_hash(void* pms)
 	//
 	sgx_lfence();
 
+	if (_tmp_sealed_data != NULL && _len_sealed_data != 0) {
+		if ( _len_sealed_data % sizeof(*_tmp_sealed_data) != 0)
+		{
+			status = SGX_ERROR_INVALID_PARAMETER;
+			goto err;
+		}
+		_in_sealed_data = (unsigned char*)malloc(_len_sealed_data);
+		if (_in_sealed_data == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		if (memcpy_s(_in_sealed_data, _len_sealed_data, _tmp_sealed_data, _len_sealed_data)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+
+	}
 	if (_tmp_author != NULL && _len_author != 0) {
 		if ( _len_author % sizeof(*_tmp_author) != 0)
 		{
@@ -875,22 +900,22 @@ static sgx_status_t SGX_CDECL sgx_e1_compare_hash(void* pms)
 			status = SGX_ERROR_INVALID_PARAMETER;
 			goto err;
 		}
-		if ((_in_hash = (unsigned char*)malloc(_len_hash)) == NULL) {
+		_in_hash = (unsigned char*)malloc(_len_hash);
+		if (_in_hash == NULL) {
 			status = SGX_ERROR_OUT_OF_MEMORY;
 			goto err;
 		}
 
-		memset((void*)_in_hash, 0, _len_hash);
-	}
-	e1_compare_hash(_in_author, _in_password, __in_ms.ms_indice, _tmp_AUTHOR_SIZE, _tmp_PW_SIZE, _in_hash, _tmp_hash_size);
-	if (_in_hash) {
-		if (memcpy_verw_s(_tmp_hash, _len_hash, _in_hash, _len_hash)) {
+		if (memcpy_s(_in_hash, _len_hash, _tmp_hash, _len_hash)) {
 			status = SGX_ERROR_UNEXPECTED;
 			goto err;
 		}
+
 	}
+	e1_compare_hash(_in_sealed_data, _in_author, _in_password, __in_ms.ms_indice, _in_hash, _tmp_sealed_data_size, _tmp_AUTHOR_SIZE, _tmp_PW_SIZE, _tmp_hash_size);
 
 err:
+	if (_in_sealed_data) free(_in_sealed_data);
 	if (_in_author) free(_in_author);
 	if (_in_password) free(_in_password);
 	if (_in_hash) free(_in_hash);

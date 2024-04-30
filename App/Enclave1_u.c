@@ -70,12 +70,14 @@ typedef struct ms_e1_extract_asset_t {
 } ms_e1_extract_asset_t;
 
 typedef struct ms_e1_compare_hash_t {
+	unsigned char* ms_sealed_data;
 	unsigned char* ms_author;
 	unsigned char* ms_password;
 	int ms_indice;
+	unsigned char* ms_hash;
+	uint32_t ms_sealed_data_size;
 	size_t ms_AUTHOR_SIZE;
 	size_t ms_PW_SIZE;
-	unsigned char* ms_hash;
 	size_t ms_hash_size;
 } ms_e1_compare_hash_t;
 
@@ -216,16 +218,18 @@ sgx_status_t e1_extract_asset(sgx_enclave_id_t eid, unsigned char* sealed_data, 
 	return status;
 }
 
-sgx_status_t e1_compare_hash(sgx_enclave_id_t eid, unsigned char* author, unsigned char* password, int indice, size_t AUTHOR_SIZE, size_t PW_SIZE, unsigned char* hash, size_t hash_size)
+sgx_status_t e1_compare_hash(sgx_enclave_id_t eid, unsigned char* sealed_data, unsigned char* author, unsigned char* password, int indice, unsigned char* hash, uint32_t sealed_data_size, size_t AUTHOR_SIZE, size_t PW_SIZE, size_t hash_size)
 {
 	sgx_status_t status;
 	ms_e1_compare_hash_t ms;
+	ms.ms_sealed_data = sealed_data;
 	ms.ms_author = author;
 	ms.ms_password = password;
 	ms.ms_indice = indice;
+	ms.ms_hash = hash;
+	ms.ms_sealed_data_size = sealed_data_size;
 	ms.ms_AUTHOR_SIZE = AUTHOR_SIZE;
 	ms.ms_PW_SIZE = PW_SIZE;
-	ms.ms_hash = hash;
 	ms.ms_hash_size = hash_size;
 	status = sgx_ecall(eid, 7, &ocall_table_Enclave1, &ms);
 	return status;

@@ -38,6 +38,7 @@
 #include "Enclave1.h"
 #include "Enclave1_t.h" /* e1_print_string */
 #include "sgx_tprotected_fs.h"
+#include "sgx_tcrypto.h"
 #include "sgx_trts.h"
 #include "sgx_tseal.h"
 
@@ -413,9 +414,102 @@ void e1_extract_asset(unsigned char *sealed_data, unsigned char *author, unsigne
 // =================================================================== 5 ===================================================================
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
 
-void e1_compare_hash(unsigned char *author, unsigned char *password, int indice, size_t author_len, size_t password_len, unsigned char *hash, size_t hash_len) {
+void e1_compare_hash(unsigned char *tpdv_data, unsigned char *author, unsigned char *password, int indice, unsigned char *hash, uint32_t tpdv_data_size, size_t author_len, size_t password_len, size_t hash_len) {
     printf("ENCLAVE: Comparing hash of asset %d\n", indice);
 
+    uint32_t unsealed_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)tpdv_data);
+
+    unsigned char *temp_buf = (unsigned char *)malloc(unsealed_size);
+
+    if (temp_buf == NULL) {
+        printf("ENCLAVE: Error allocating memory for sealed data\n");
+        return;
+    }
+
+    unseal_data(tpdv_data, tpdv_data_size, temp_buf);
+
+    // Check credentials
+    unsigned char actual_author[AUTHOR_SIZE] = {0};
+    unsigned char actual_password[PW_SIZE] = {0};
+    memcpy(actual_author, temp_buf, AUTHOR_SIZE);
+    memcpy(actual_password, temp_buf + AUTHOR_SIZE, PW_SIZE);
+
+    if (!check_credentials(actual_password, actual_author, password, author)) {
+        printf("ENCLAVE: Invalid credentials\n");
+        return;
+    }
+
+    // Get the number of assets
+    unsigned char num_assets = temp_buf[AUTHOR_SIZE + PW_SIZE];
+
+    if (indice > num_assets) {
+        printf("ENCLAVE: Asset not found\n");
+        return;
+    }
+
+    uint32_t pointer = HEADER_SIZE; // Skip the header
+    uint32_t asset_size = 0;
+
+    for (int i = 1; i <= indice; i++) {
+        pointer += 20; // Skip the asset name
+        unsigned char asset_size_bytes[4] = {0};
+
+        asset_size = 0;
+        asset_size |= (uint32_t)temp_buf[pointer++] << 24;
+        asset_size |= (uint32_t)temp_buf[pointer++] << 16;
+        asset_size |= (uint32_t)temp_buf[pointer++] << 8;
+        asset_size |= (uint32_t)temp_buf[pointer++];
+
+        if (i != indice)
+            pointer += asset_size;
+    }
+
+    unsigned char asset_content[asset_size];
+    memcpy(asset_content, temp_buf + pointer, asset_size);
+
+    free(temp_buf);
+
+    // Create the hash
+    sgx_sha256_hash_t hash_result;
+    sgx_sha_state_handle_t sha_handle = NULL;
+    sgx_status_t ret = sgx_sha256_init(&sha_handle);
+    if (ret != SGX_SUCCESS) {
+        printf("ENCLAVE: Error initializing SHA256\n");
+        return;
+    }
+
+    ret = sgx_sha256_update((const uint8_t *)asset_content, asset_size, sha_handle);
+
+    if (ret != SGX_SUCCESS) {
+        printf("ENCLAVE: Error updating SHA256\n");
+        return;
+    }
+
+    ret = sgx_sha256_get_hash(sha_handle, (sgx_sha256_hash_t *)&hash_result);
+
+    if (ret != SGX_SUCCESS) {
+        printf("ENCLAVE: Error getting SHA256 hash\n");
+        return;
+    }
+
+    // Compare the hashes
+    printf("ENCLAVE: Hash Given: ");
+    for (int i = 0; i < hash_len; i++) {
+        printf("%02x", hash[i]);
+    }
+    printf("\n");
+    printf("ENCLAVE: Hash Result: ");
+    for (int i = 0; i < hash_len; i++) {
+        printf("%02x", hash_result[i]);
+    }
+    printf("\n");
+    
+
+    if (memcmp(hash, hash_result, hash_len) == 0) {
+        printf("ENCLAVE: Hashes match\n");
+    } else {
+        printf("ENCLAVE: Hashes do not match\n");
+    }
 
 }
 
@@ -447,14 +541,6 @@ void e1_change_password(unsigned char *tpdv_data, unsigned char *author, unsigne
         return;
     }
 
-    // DEBUG:
-    // for (int i =0 ; i < unsealed_size; i++) {
-    //     if (temp_buf[i] == '\0') {
-    //         printf("ENCLAVE: [%d]= \\0\n", i);
-    //     } else {
-    //         printf("ENCLAVE: [%d]= %c\n", i, temp_buf[i]);
-    //     }
-    // }
 
     // Change the password
     memcpy(temp_buf + AUTHOR_SIZE, new_password, new_password_len);

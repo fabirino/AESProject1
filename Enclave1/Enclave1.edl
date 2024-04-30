@@ -90,12 +90,14 @@ enclave {
                                      uint32_t asset_size,
                                      size_t asset_name_len);
         
-        public void e1_compare_hash([in, size=AUTHOR_SIZE] unsigned char *author,
+        public void e1_compare_hash([in, size=sealed_data_size] unsigned char *sealed_data,
+                                    [in, size=AUTHOR_SIZE] unsigned char *author,
                                     [in, size=PW_SIZE] unsigned char *password,
                                     int indice,
+                                    [in, size=hash_size] unsigned char *hash,
+                                    uint32_t sealed_data_size,
                                     size_t AUTHOR_SIZE,
                                     size_t PW_SIZE,
-                                    [out, size=hash_size] unsigned char *hash,
                                     size_t hash_size);
 
         public void e1_change_password([in, size=tpdv_data_size ]unsigned char *tpdv_data,
