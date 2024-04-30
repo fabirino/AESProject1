@@ -101,36 +101,79 @@ uint32_t e1_get_unsealed_data_size(unsigned char *sealed_data, uint32_t sealed_d
     return sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)sealed_data);
 }
 
-void unseal_data(const uint8_t *sealed_data, size_t sealed_data_size, unsigned char *unsealed_data) {
+void calculate_nonce(unsigned char *content, unsigned char *nonce){
+
+    // Calculate the nonce with sha256 of the content
+    sgx_sha256_hash_t hash_result;
+    sgx_sha_state_handle_t sha_handle = NULL;
+
+    sgx_status_t ret = sgx_sha256_init(&sha_handle);
+
+    if (ret != SGX_SUCCESS) {
+        return;
+    }
+
+    ret = sgx_sha256_update((const uint8_t *)content, strlen((char *)content), sha_handle);
+
+    if (ret != SGX_SUCCESS) {
+        return;
+    }
+
+    ret = sgx_sha256_get_hash(sha_handle, (sgx_sha256_hash_t *)&hash_result);
+
+    if (ret != SGX_SUCCESS) {
+        return;
+    }
+
+    // Copy the first 4 bytes of the hash to the nonce
+    memcpy(nonce, hash_result, 4);
+
+}
+
+int unseal_data(const uint8_t *sealed_data, size_t sealed_data_size, unsigned char *unsealed_data) {
     uint32_t mac_text_len = sgx_get_add_mac_txt_len((const sgx_sealed_data_t *)sealed_data);
     uint32_t decrypt_data_len = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)sealed_data);
     if (mac_text_len == UINT32_MAX || decrypt_data_len == UINT32_MAX)
-        return;
+        return 0;
     if (mac_text_len > sealed_data_size || decrypt_data_len > sealed_data_size)
-        return;
+        return 0;
 
     uint8_t *de_mac_text = (uint8_t *)malloc(mac_text_len);
     if (de_mac_text == NULL)
-        return;
+        return 0;
 
     if (unsealed_data == NULL) {
         free(de_mac_text);
-        return;
+        return 0;
     }
 
     sgx_status_t ret = sgx_unseal_data((const sgx_sealed_data_t *)sealed_data, de_mac_text, &mac_text_len, unsealed_data, &decrypt_data_len);
     if (ret != SGX_SUCCESS) {
         free(de_mac_text);
-        return;
+        return 0;
     }
 
     if (memcmp(de_mac_text, aad_mac_text, strlen(aad_mac_text))) {
         ret = SGX_ERROR_UNEXPECTED;
+        return 0;
     }
 
-    // TODO: Comparar nonce aqui
+    // Comparar nonce
+    unsigned char num_assets = unsealed_data[AUTHOR_SIZE + PW_SIZE];
+
+    if (num_assets > 0) {
+        unsigned char nonce[4] = {0};
+        calculate_nonce(unsealed_data + HEADER_SIZE, nonce);
+
+        if (memcmp(nonce, unsealed_data + AUTHOR_SIZE + PW_SIZE + 1, 4) != 0) {
+            printf("ENCLAVE: Nonce alterado, integridade do ficheiro comprometida\n");
+            return 0;
+        }
+    } 
 
     free(de_mac_text);
+
+    return 1;
 }
 
 int check_credentials(unsigned char *actual_password, unsigned char *actual_author, unsigned char *password, unsigned char *author) {
@@ -194,7 +237,9 @@ void e1_add_asset(unsigned char *tpdv_data, unsigned char *author, unsigned char
         return;
     }
 
-    unseal_data(tpdv_data, tpdv_data_size_sealed, temp_buf);
+    if (!unseal_data(tpdv_data, tpdv_data_size_sealed, temp_buf)){
+        return;
+    }
 
     // Check credentials
     unsigned char actual_author[AUTHOR_SIZE] = {0};
@@ -231,6 +276,10 @@ void e1_add_asset(unsigned char *tpdv_data, unsigned char *author, unsigned char
     memcpy(new_tpdv_data + tpdv_data_size_unsealed + asset_name_len, asset_size_bytes, 4);
     memcpy(new_tpdv_data + tpdv_data_size_unsealed + asset_name_len + 4, asset_content, asset_content_len);
 
+    // Update the nonce
+    unsigned char nonce[4] = {0};
+    calculate_nonce(new_tpdv_data + HEADER_SIZE, nonce);
+    memcpy(new_tpdv_data + AUTHOR_SIZE + PW_SIZE + 1, nonce, 4);
 
 
     // Seal the new TPDV data
@@ -263,7 +312,9 @@ void e1_list_assets(unsigned char * file_name, unsigned char *sealed_data, unsig
         return;
     }
 
-    unseal_data(sealed_data, sealed_data_size, temp_buf);
+    if (!unseal_data(sealed_data, sealed_data_size, temp_buf)){
+        return;
+    }
 
     // Check credentials
     unsigned char actual_author[AUTHOR_SIZE] = {0};
@@ -372,7 +423,9 @@ void e1_extract_asset(unsigned char *sealed_data, unsigned char *author, unsigne
         return;
     }
 
-    unseal_data(sealed_data, sealed_data_size, temp_buf);
+    if (!unseal_data(sealed_data, sealed_data_size, temp_buf)){
+        return;
+    }
 
     // Check credentials
     unsigned char actual_author[AUTHOR_SIZE] = {0};
@@ -408,6 +461,7 @@ void e1_extract_asset(unsigned char *sealed_data, unsigned char *author, unsigne
     // Get the asset content
     memcpy(unsealed_data, temp_buf + pointer, asset_size);
     free(temp_buf);
+
 }
 
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
@@ -426,7 +480,9 @@ void e1_compare_hash(unsigned char *tpdv_data, unsigned char *author, unsigned c
         return;
     }
 
-    unseal_data(tpdv_data, tpdv_data_size, temp_buf);
+    if (!unseal_data(tpdv_data, tpdv_data_size, temp_buf)){
+        return;
+    }
 
     // Check credentials
     unsigned char actual_author[AUTHOR_SIZE] = {0};
@@ -493,16 +549,16 @@ void e1_compare_hash(unsigned char *tpdv_data, unsigned char *author, unsigned c
     }
 
     // Compare the hashes
-    printf("ENCLAVE: Hash Given: ");
-    for (int i = 0; i < hash_len; i++) {
-        printf("%02x", hash[i]);
-    }
-    printf("\n");
-    printf("ENCLAVE: Hash Result: ");
-    for (int i = 0; i < hash_len; i++) {
-        printf("%02x", hash_result[i]);
-    }
-    printf("\n");
+    // printf("ENCLAVE: Hash Given: ");
+    // for (int i = 0; i < hash_len; i++) {
+    //     printf("%02x", hash[i]);
+    // }
+    // printf("\n");
+    // printf("ENCLAVE: Hash Result: ");
+    // for (int i = 0; i < hash_len; i++) {
+    //     printf("%02x", hash_result[i]);
+    // }
+    // printf("\n");
     
 
     if (memcmp(hash, hash_result, hash_len) == 0) {
@@ -510,6 +566,7 @@ void e1_compare_hash(unsigned char *tpdv_data, unsigned char *author, unsigned c
     } else {
         printf("ENCLAVE: Hashes do not match\n");
     }
+
 
 }
 
@@ -528,7 +585,9 @@ void e1_change_password(unsigned char *tpdv_data, unsigned char *author, unsigne
         return;
     }
 
-    unseal_data(tpdv_data, tpdv_data_size, temp_buf);
+    if (!unseal_data(tpdv_data, tpdv_data_size, temp_buf)){
+        return;
+    }
 
     // Check credentials
     unsigned char actual_author[AUTHOR_SIZE] = {0};

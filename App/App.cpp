@@ -333,6 +333,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
 
     int terminar = 0;
     int opcao = -1;
+    int status = 0;
     unsigned char file_name[FILE_NAME_SIZE] = {};
     unsigned char author[AUTHOR_SIZE] = {};
     unsigned char password[PW_SIZE] = {};
@@ -365,6 +366,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
     while (!terminar) {
 
         // Reset variables after each iteration of the loop
+        status = 0;
         memset(file_name, 0, FILE_NAME_SIZE);
         memset(author, 0, AUTHOR_SIZE);
         memset(password, 0, PW_SIZE);
