@@ -1,0 +1,125 @@
+/*
+ * Copyright (C) 2011-2018 Intel Corporation. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in
+ *     the documentation and/or other materials provided with the
+ *     distribution.
+ *   * Neither the name of Intel Corporation nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+
+/* Enclave2.edl - Top EDL file. */
+
+enclave {
+    
+    /* Import ECALL/OCALL from sub-directory EDLs.
+     *  [from]: specifies the location of EDL file. 
+     *  [import]: specifies the functions to import, 
+     *  [*]: implies to import all functions.
+     */
+    
+    trusted {
+        public uint32_t e2_get_sealed_data_size(uint32_t data_size);
+
+        public uint32_t e2_get_unsealed_data_size([in, size=sealed_data_size] unsigned char *sealed_data, uint32_t sealed_data_size);
+        
+        public void e2_create_tpdv([in, size=author_len] unsigned char *autor,
+                                   [in, size=password_len] unsigned char *password,
+                                   size_t author_len,
+                                   size_t password_len,
+                                   [out, size=sealed_data_size] unsigned char *sealed_data,
+                                   uint32_t sealed_data_size);
+        
+        public void e2_add_asset([in, size=tpdv_data_size] unsigned char *tpdv_data,
+                                 [in, size=author_len] unsigned char *autor,
+                                 [in, size=password_len] unsigned char *password,
+                                 [in, size=asset_name_len] unsigned char *asset_name,
+                                 [in, size=asset_size] unsigned char *asset,
+                                 uint32_t tpdv_data_size_unsealed,
+                                 uint32_t tpdv_data_size,
+                                 size_t author_len,
+                                 size_t password_len,
+                                 size_t asset_name_len,
+                                 uint32_t asset_size,
+                                 [out, size=sealed_data_size] unsigned char *sealed_data,
+                                 uint32_t sealed_data_size);
+        
+        public void e2_list_assets([in, size=file_name_len] unsigned char *file_name,
+                                   [in, size=sealed_data_size] unsigned char *sealed_data,
+                                   [in, size=author_len] unsigned char *author,
+                                   [in, size=password_len] unsigned char *password,
+                                   size_t file_name_len,
+                                   uint32_t sealed_data_size,
+                                   size_t author_len,
+                                   size_t password_len);
+
+        public uint32_t e2_get_asset_size([in, size=tpdv_data_size] unsigned char *seal_data,
+                                          int indice,
+                                          uint32_t tpdv_data_size);
+        
+        public void e2_extract_asset([in, size=sealed_data_size] unsigned char *sealed_data,
+                                     [in, size=author_len] unsigned char *author,
+                                     [in, size=password_len] unsigned char *password,
+                                     int indice,
+                                     uint32_t sealed_data_size,
+                                     size_t author_len,
+                                     size_t password_len,
+                                     [out, size=asset_size] unsigned char *unsealed_data,
+                                     [out, size=asset_name_len] unsigned char *asset_name,
+                                     uint32_t asset_size,
+                                     size_t asset_name_len);
+        
+        public void e2_compare_hash([in, size=sealed_data_size] unsigned char *sealed_data,
+                                    [in, size=AUTHOR_SIZE] unsigned char *author,
+                                    [in, size=PW_SIZE] unsigned char *password,
+                                    int indice,
+                                    [in, size=hash_size] unsigned char *hash,
+                                    uint32_t sealed_data_size,
+                                    size_t AUTHOR_SIZE,
+                                    size_t PW_SIZE,
+                                    size_t hash_size);
+
+        public void e2_change_password([in, size=tpdv_data_size ]unsigned char *tpdv_data,
+                                       [in, size=author_len] unsigned char *author,
+                                       [in, size=password_len] unsigned char *password,
+                                       [in, size=new_password_len] unsigned char *new_password,
+                                       uint32_t tpdv_data_size,
+                                       size_t author_len,
+                                       size_t password_len,
+                                       size_t new_password_len,
+                                       [out, size = sealed_data_size] unsigned char *sealed_data,
+                                       uint32_t sealed_data_size);
+
+    };
+
+    /* 
+     * ocall_print_string - invokes OCALL to display string buffer inside the enclave.
+     *  [in]: copy the string buffer to App outside.
+     *  [string]: specifies 'str' is a NULL terminated buffer.
+     */
+    untrusted {
+        void ocall_e2_print_string([in, string] const char *str);
+    };
+
+};

@@ -36,6 +36,7 @@
 
 #include "App.h"
 #include "Enclave1_u.h"
+#include "Enclave2_u.h"
 #include "sgx_urts.h"
 
 #define HEADER_SIZE 25
@@ -166,6 +167,10 @@ int initialize_enclave1(void) {
 }
 
 void ocall_e1_print_string(const char *str) {
+    printf("%s", str);
+}
+
+void ocall_e2_print_string(const char *str) {
     printf("%s", str);
 }
 

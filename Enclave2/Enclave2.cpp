@@ -35,8 +35,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "Enclave1.h"
-#include "Enclave1_t.h" /* e1_print_string */
+#include "Enclave2.h"
+#include "Enclave2_t.h" /* e2_print_string */
 #include "sgx_tprotected_fs.h"
 #include "sgx_tcrypto.h"
 #include "sgx_trts.h"
@@ -59,7 +59,7 @@ int printf(const char *fmt, ...) {
     va_start(ap, fmt);
     (void)vsnprintf(buf, BUFSIZ, fmt, ap);
     va_end(ap);
-    ocall_e1_print_string(buf);
+    ocall_e2_print_string(buf);
     return 0;
 }
 
@@ -70,7 +70,7 @@ int printf(const char *fmt, ...) {
 // FIXME:
 char aad_mac_text[BUFSIZ] = "aad mac text";
 
-uint32_t e1_get_sealed_data_size(uint32_t data_size) {
+uint32_t e2_get_sealed_data_size(uint32_t data_size) {
     return sgx_calc_sealed_data_size((uint32_t)strlen(aad_mac_text), data_size);
 }
 
@@ -97,7 +97,7 @@ void seal_data(unsigned char *data, uint32_t data_size, unsigned char *sealed_da
     free(temp_seal_buf);
 }
 
-uint32_t e1_get_unsealed_data_size(unsigned char *sealed_data, uint32_t sealed_data_size) {
+uint32_t e2_get_unsealed_data_size(unsigned char *sealed_data, uint32_t sealed_data_size) {
     return sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)sealed_data);
 }
 
@@ -188,7 +188,7 @@ int check_credentials(unsigned char *actual_password, unsigned char *actual_auth
 // =================================================================== 1 ===================================================================
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
 
-void e1_create_tpdv(unsigned char *author, unsigned char *password, size_t author_len, size_t password_len, unsigned char *sealed_data, uint32_t sealed_data_len) {
+void e2_create_tpdv(unsigned char *author, unsigned char *password, size_t author_len, size_t password_len, unsigned char *sealed_data, uint32_t sealed_data_len) {
     printf("ENCLAVE: Creating TPDV for author: %s \n", author);
 
     unsigned char header[HEADER_SIZE] = {0};
@@ -227,7 +227,7 @@ void e1_create_tpdv(unsigned char *author, unsigned char *password, size_t autho
 // =================================================================== 2 ===================================================================
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
 
-void e1_add_asset(unsigned char *tpdv_data, unsigned char *author, unsigned char *password, unsigned char *asset_name, unsigned char *asset_content, uint32_t tpdv_data_size_unsealed, uint32_t tpdv_data_size_sealed, size_t author_len, size_t password_len, size_t asset_name_len, uint32_t asset_content_len, unsigned char *sealed_data, uint32_t sealed_data_size) {
+void e2_add_asset(unsigned char *tpdv_data, unsigned char *author, unsigned char *password, unsigned char *asset_name, unsigned char *asset_content, uint32_t tpdv_data_size_unsealed, uint32_t tpdv_data_size_sealed, size_t author_len, size_t password_len, size_t asset_name_len, uint32_t asset_content_len, unsigned char *sealed_data, uint32_t sealed_data_size) {
     printf("ENCLAVE: Adding asset: %s\n", asset_name);
 
     // Unseal the data
@@ -301,7 +301,7 @@ void e1_add_asset(unsigned char *tpdv_data, unsigned char *author, unsigned char
 // =================================================================== 3 ===================================================================
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
 
-void e1_list_assets(unsigned char * file_name, unsigned char *sealed_data, unsigned char *author, unsigned char *password, size_t file_name_size, uint32_t sealed_data_size, size_t author_len, size_t password_len) {
+void e2_list_assets(unsigned char * file_name, unsigned char *sealed_data, unsigned char *author, unsigned char *password, size_t file_name_size, uint32_t sealed_data_size, size_t author_len, size_t password_len) {
     printf("ENCLAVE: Listing assets from TPDV\n");
 
     uint32_t unsealed_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)sealed_data);
@@ -372,7 +372,7 @@ void e1_list_assets(unsigned char * file_name, unsigned char *sealed_data, unsig
 // =================================================================== 4 ===================================================================
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
 
-uint32_t e1_get_asset_size(unsigned char *sealed_data, int indice, uint32_t sealed_data_size){
+uint32_t e2_get_asset_size(unsigned char *sealed_data, int indice, uint32_t sealed_data_size){
 
     uint32_t unsealed_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)sealed_data);
 
@@ -412,7 +412,7 @@ uint32_t e1_get_asset_size(unsigned char *sealed_data, int indice, uint32_t seal
     return asset_size;
 }
 
-void e1_extract_asset(unsigned char *sealed_data, unsigned char *author, unsigned char *password, int indice, uint32_t sealed_data_size, size_t author_len, size_t password_len, unsigned char *unsealed_data, unsigned char* asset_name, uint32_t asset_size, size_t asset_name_len) {
+void e2_extract_asset(unsigned char *sealed_data, unsigned char *author, unsigned char *password, int indice, uint32_t sealed_data_size, size_t author_len, size_t password_len, unsigned char *unsealed_data, unsigned char* asset_name, uint32_t asset_size, size_t asset_name_len) {
     printf("ENCLAVE: Extracting asset %d\n", indice);
 
     uint32_t unsealed_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)sealed_data);
@@ -468,7 +468,7 @@ void e1_extract_asset(unsigned char *sealed_data, unsigned char *author, unsigne
 // =================================================================== 5 ===================================================================
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
 
-void e1_compare_hash(unsigned char *tpdv_data, unsigned char *author, unsigned char *password, int indice, unsigned char *hash, uint32_t tpdv_data_size, size_t author_len, size_t password_len, size_t hash_len) {
+void e2_compare_hash(unsigned char *tpdv_data, unsigned char *author, unsigned char *password, int indice, unsigned char *hash, uint32_t tpdv_data_size, size_t author_len, size_t password_len, size_t hash_len) {
     printf("ENCLAVE: Comparing hash of asset %d\n", indice);
 
     uint32_t unsealed_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)tpdv_data);
@@ -574,7 +574,7 @@ void e1_compare_hash(unsigned char *tpdv_data, unsigned char *author, unsigned c
 // =================================================================== 6 ===================================================================
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
 
-void e1_change_password(unsigned char *tpdv_data, unsigned char *author, unsigned char *password, unsigned char *new_password, uint32_t tpdv_data_size, size_t author_len, size_t password_len, size_t new_password_len, unsigned char *sealed_data, uint32_t sealed_data_size) {
+void e2_change_password(unsigned char *tpdv_data, unsigned char *author, unsigned char *password, unsigned char *new_password, uint32_t tpdv_data_size, size_t author_len, size_t password_len, size_t new_password_len, unsigned char *sealed_data, uint32_t sealed_data_size) {
     printf("ENCLAVE: Changing password\n");
 
     uint32_t unsealed_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)tpdv_data);
