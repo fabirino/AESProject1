@@ -12,6 +12,16 @@ typedef struct ms_e1_get_unsealed_data_size_t {
 	uint32_t ms_sealed_data_size;
 } ms_e1_get_unsealed_data_size_t;
 
+typedef struct ms_e1_check_credentials_t {
+	int ms_retval;
+	unsigned char* ms_tpdv_data;
+	unsigned char* ms_author;
+	unsigned char* ms_password;
+	uint32_t ms_tpdv_data_size;
+	size_t ms_author_len;
+	size_t ms_password_len;
+} ms_e1_check_credentials_t;
+
 typedef struct ms_e1_create_tpdv_t {
 	unsigned char* ms_autor;
 	unsigned char* ms_password;
@@ -94,6 +104,30 @@ typedef struct ms_e1_change_password_t {
 	uint32_t ms_sealed_data_size;
 } ms_e1_change_password_t;
 
+typedef struct ms_e1_init_session_t {
+	sgx_status_t* ms_dh_status;
+} ms_e1_init_session_t;
+
+typedef struct ms_e1_process_message1_t {
+	const sgx_dh_msg1_t* ms_msg1;
+	sgx_dh_msg2_t* ms_msg2;
+	sgx_status_t* ms_dh_status;
+} ms_e1_process_message1_t;
+
+typedef struct ms_e1_process_message3_t {
+	const sgx_dh_msg3_t* ms_msg3;
+	sgx_status_t* ms_dh_status;
+} ms_e1_process_message3_t;
+
+typedef struct ms_e1_get_TPDV_ciphered_t {
+	unsigned char* ms_tpdv_data;
+	uint32_t ms_tpdv_data_size;
+	unsigned char* ms_ciphered_tpdv_data;
+	uint32_t ms_ciphered_tpdv_data_size;
+	sgx_aes_gcm_128bit_tag_t* ms_p_out_mac;
+	int ms_mac_size;
+} ms_e1_get_TPDV_ciphered_t;
+
 typedef struct ms_ocall_e1_print_string_t {
 	const char* ms_str;
 } ms_ocall_e1_print_string_t;
@@ -136,6 +170,21 @@ sgx_status_t e1_get_unsealed_data_size(sgx_enclave_id_t eid, uint32_t* retval, u
 	return status;
 }
 
+sgx_status_t e1_check_credentials(sgx_enclave_id_t eid, int* retval, unsigned char* tpdv_data, unsigned char* author, unsigned char* password, uint32_t tpdv_data_size, size_t author_len, size_t password_len)
+{
+	sgx_status_t status;
+	ms_e1_check_credentials_t ms;
+	ms.ms_tpdv_data = tpdv_data;
+	ms.ms_author = author;
+	ms.ms_password = password;
+	ms.ms_tpdv_data_size = tpdv_data_size;
+	ms.ms_author_len = author_len;
+	ms.ms_password_len = password_len;
+	status = sgx_ecall(eid, 2, &ocall_table_Enclave1, &ms);
+	if (status == SGX_SUCCESS && retval) *retval = ms.ms_retval;
+	return status;
+}
+
 sgx_status_t e1_create_tpdv(sgx_enclave_id_t eid, unsigned char* autor, unsigned char* password, size_t author_len, size_t password_len, unsigned char* sealed_data, uint32_t sealed_data_size)
 {
 	sgx_status_t status;
@@ -146,7 +195,7 @@ sgx_status_t e1_create_tpdv(sgx_enclave_id_t eid, unsigned char* autor, unsigned
 	ms.ms_password_len = password_len;
 	ms.ms_sealed_data = sealed_data;
 	ms.ms_sealed_data_size = sealed_data_size;
-	status = sgx_ecall(eid, 2, &ocall_table_Enclave1, &ms);
+	status = sgx_ecall(eid, 3, &ocall_table_Enclave1, &ms);
 	return status;
 }
 
@@ -167,7 +216,7 @@ sgx_status_t e1_add_asset(sgx_enclave_id_t eid, unsigned char* tpdv_data, unsign
 	ms.ms_asset_size = asset_size;
 	ms.ms_sealed_data = sealed_data;
 	ms.ms_sealed_data_size = sealed_data_size;
-	status = sgx_ecall(eid, 3, &ocall_table_Enclave1, &ms);
+	status = sgx_ecall(eid, 4, &ocall_table_Enclave1, &ms);
 	return status;
 }
 
@@ -183,7 +232,7 @@ sgx_status_t e1_list_assets(sgx_enclave_id_t eid, unsigned char* file_name, unsi
 	ms.ms_sealed_data_size = sealed_data_size;
 	ms.ms_author_len = author_len;
 	ms.ms_password_len = password_len;
-	status = sgx_ecall(eid, 4, &ocall_table_Enclave1, &ms);
+	status = sgx_ecall(eid, 5, &ocall_table_Enclave1, &ms);
 	return status;
 }
 
@@ -194,7 +243,7 @@ sgx_status_t e1_get_asset_size(sgx_enclave_id_t eid, uint32_t* retval, unsigned 
 	ms.ms_seal_data = seal_data;
 	ms.ms_indice = indice;
 	ms.ms_tpdv_data_size = tpdv_data_size;
-	status = sgx_ecall(eid, 5, &ocall_table_Enclave1, &ms);
+	status = sgx_ecall(eid, 6, &ocall_table_Enclave1, &ms);
 	if (status == SGX_SUCCESS && retval) *retval = ms.ms_retval;
 	return status;
 }
@@ -214,7 +263,7 @@ sgx_status_t e1_extract_asset(sgx_enclave_id_t eid, unsigned char* sealed_data, 
 	ms.ms_asset_name = asset_name;
 	ms.ms_asset_size = asset_size;
 	ms.ms_asset_name_len = asset_name_len;
-	status = sgx_ecall(eid, 6, &ocall_table_Enclave1, &ms);
+	status = sgx_ecall(eid, 7, &ocall_table_Enclave1, &ms);
 	return status;
 }
 
@@ -231,7 +280,7 @@ sgx_status_t e1_compare_hash(sgx_enclave_id_t eid, unsigned char* sealed_data, u
 	ms.ms_AUTHOR_SIZE = AUTHOR_SIZE;
 	ms.ms_PW_SIZE = PW_SIZE;
 	ms.ms_hash_size = hash_size;
-	status = sgx_ecall(eid, 7, &ocall_table_Enclave1, &ms);
+	status = sgx_ecall(eid, 8, &ocall_table_Enclave1, &ms);
 	return status;
 }
 
@@ -249,7 +298,58 @@ sgx_status_t e1_change_password(sgx_enclave_id_t eid, unsigned char* tpdv_data, 
 	ms.ms_new_password_len = new_password_len;
 	ms.ms_sealed_data = sealed_data;
 	ms.ms_sealed_data_size = sealed_data_size;
-	status = sgx_ecall(eid, 8, &ocall_table_Enclave1, &ms);
+	status = sgx_ecall(eid, 9, &ocall_table_Enclave1, &ms);
+	return status;
+}
+
+sgx_status_t e1_init_session(sgx_enclave_id_t eid, sgx_status_t* dh_status)
+{
+	sgx_status_t status;
+	ms_e1_init_session_t ms;
+	ms.ms_dh_status = dh_status;
+	status = sgx_ecall(eid, 10, &ocall_table_Enclave1, &ms);
+	return status;
+}
+
+sgx_status_t e1_process_message1(sgx_enclave_id_t eid, const sgx_dh_msg1_t* msg1, sgx_dh_msg2_t* msg2, sgx_status_t* dh_status)
+{
+	sgx_status_t status;
+	ms_e1_process_message1_t ms;
+	ms.ms_msg1 = msg1;
+	ms.ms_msg2 = msg2;
+	ms.ms_dh_status = dh_status;
+	status = sgx_ecall(eid, 11, &ocall_table_Enclave1, &ms);
+	return status;
+}
+
+sgx_status_t e1_process_message3(sgx_enclave_id_t eid, const sgx_dh_msg3_t* msg3, sgx_status_t* dh_status)
+{
+	sgx_status_t status;
+	ms_e1_process_message3_t ms;
+	ms.ms_msg3 = msg3;
+	ms.ms_dh_status = dh_status;
+	status = sgx_ecall(eid, 12, &ocall_table_Enclave1, &ms);
+	return status;
+}
+
+sgx_status_t e1_show_secret_key(sgx_enclave_id_t eid)
+{
+	sgx_status_t status;
+	status = sgx_ecall(eid, 13, &ocall_table_Enclave1, NULL);
+	return status;
+}
+
+sgx_status_t e1_get_TPDV_ciphered(sgx_enclave_id_t eid, unsigned char* tpdv_data, uint32_t tpdv_data_size, unsigned char* ciphered_tpdv_data, uint32_t ciphered_tpdv_data_size, sgx_aes_gcm_128bit_tag_t* p_out_mac, int mac_size)
+{
+	sgx_status_t status;
+	ms_e1_get_TPDV_ciphered_t ms;
+	ms.ms_tpdv_data = tpdv_data;
+	ms.ms_tpdv_data_size = tpdv_data_size;
+	ms.ms_ciphered_tpdv_data = ciphered_tpdv_data;
+	ms.ms_ciphered_tpdv_data_size = ciphered_tpdv_data_size;
+	ms.ms_p_out_mac = p_out_mac;
+	ms.ms_mac_size = mac_size;
+	status = sgx_ecall(eid, 14, &ocall_table_Enclave1, &ms);
 	return status;
 }
 

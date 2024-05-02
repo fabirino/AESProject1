@@ -39,6 +39,7 @@ enclave {
      *  [*]: implies to import all functions.
      */
     
+    include "sgx_dh.h"
     trusted {
         public uint32_t e2_get_sealed_data_size(uint32_t data_size);
 
@@ -110,6 +111,19 @@ enclave {
                                        size_t new_password_len,
                                        [out, size = sealed_data_size] unsigned char *sealed_data,
                                        uint32_t sealed_data_size);
+                                       
+        public void e2_init_session([out] sgx_status_t *dh_status);
+        public void e2_create_message1([out] sgx_dh_msg1_t *msg1,[out] sgx_status_t *dh_status);
+        public void e2_process_message2([in] const sgx_dh_msg2_t *msg2,[out] sgx_dh_msg3_t *msg3,[out] sgx_status_t *dh_status);
+        public void e2_show_secret_key(void);
+
+        void e2_seal_ciphertext([in, size=ciphertext_size] unsigned char *ciphertext,
+                                uint32_t ciphertext_size,
+                                [out, size=sealed_data_size] unsigned char *selead_data,
+                                uint32_t sealed_data_size,
+                                [out, size=mac_size] sgx_aes_gcm_128bit_tag_t *p_in_mac,
+                                int mac_size);
+
 
     };
 

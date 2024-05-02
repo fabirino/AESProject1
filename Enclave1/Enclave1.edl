@@ -38,11 +38,19 @@ enclave {
      *  [import]: specifies the functions to import, 
      *  [*]: implies to import all functions.
      */
-    
+
+    include "sgx_dh.h"
     trusted {
         public uint32_t e1_get_sealed_data_size(uint32_t data_size);
 
         public uint32_t e1_get_unsealed_data_size([in, size=sealed_data_size] unsigned char *sealed_data, uint32_t sealed_data_size);
+
+        public int e1_check_credentials([in, size=tpdv_data_size] unsigned char *tpdv_data,
+                                 [in, size=author_len] unsigned char *author,
+                                 [in, size=password_len] unsigned char *password,
+                                 uint32_t tpdv_data_size,
+                                 size_t author_len,
+                                 size_t password_len);
         
         public void e1_create_tpdv([in, size=author_len] unsigned char *autor,
                                    [in, size=password_len] unsigned char *password,
@@ -110,6 +118,19 @@ enclave {
                                        size_t new_password_len,
                                        [out, size = sealed_data_size] unsigned char *sealed_data,
                                        uint32_t sealed_data_size);
+
+        public void e1_init_session([out] sgx_status_t *dh_status);
+        public void e1_process_message1([in] const sgx_dh_msg1_t *msg1,[out] sgx_dh_msg2_t *msg2,[out] sgx_status_t *dh_status);
+        public void e1_process_message3([in] const sgx_dh_msg3_t *msg3,[out] sgx_status_t *dh_status);
+        public void e1_show_secret_key(void);
+
+        public void e1_get_TPDV_ciphered([in, size=tpdv_data_size] unsigned char *tpdv_data,
+                             uint32_t tpdv_data_size,
+                             [out, size=ciphered_tpdv_data_size] unsigned char *ciphered_tpdv_data,
+                             uint32_t ciphered_tpdv_data_size,
+                             [out, size=mac_size] sgx_aes_gcm_128bit_tag_t *p_out_mac,
+                             int mac_size);
+                             
 
     };
 

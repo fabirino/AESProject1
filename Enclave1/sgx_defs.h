@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2018 Intel Corporation. All rights reserved.
+ * Copyright (C) 2011-2021 Intel Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,31 +29,28 @@
  *
  */
 
+#ifndef _SGX_DEFS_H_
+#define _SGX_DEFS_H_
 
-#ifndef _APP_H_
-#define _APP_H_
+/* The following macros are for GCC only */
 
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
+#define SGXAPI
 
-#include "sgx_error.h"       /* sgx_status_t */
-#include "sgx_eid.h"     /* sgx_enclave_id_t */
-
-
-#define ENCLAVE1_FILENAME "enclave1.signed.so"
-#define ENCLAVE2_FILENAME "enclave2.signed.so"
-
-
-#if defined(__cplusplus)
-extern "C" {
+#ifdef linux
+  #undef linux
 #endif
+#define SGX_CXX_NATIVE_HEADER(header)   <stdc++/linux/header>
 
-#if defined(__cplusplus)
-}
-#endif
+#define SGX_CDECL
+#define SGX_STDCALL
+#define SGX_FASTCALL
 
-#include "sgx_dh.h"
+#define SGX_DLLIMPORT
+#define SGX_UBRIDGE(attr, fname, args...) attr fname args
 
-#endif /* !_APP_H_ */
+#define SGX_DEPRECATED __attribute__((deprecated))
+
+
+#define SGX_NOCONVENTION /* Empty.  No calling convention specified. */
+
+#endif /* !_SGX_DEFS_H_ */

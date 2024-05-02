@@ -120,6 +120,30 @@ typedef struct ms_e2_change_password_t {
 	uint32_t ms_sealed_data_size;
 } ms_e2_change_password_t;
 
+typedef struct ms_e2_init_session_t {
+	sgx_status_t* ms_dh_status;
+} ms_e2_init_session_t;
+
+typedef struct ms_e2_create_message1_t {
+	sgx_dh_msg1_t* ms_msg1;
+	sgx_status_t* ms_dh_status;
+} ms_e2_create_message1_t;
+
+typedef struct ms_e2_process_message2_t {
+	const sgx_dh_msg2_t* ms_msg2;
+	sgx_dh_msg3_t* ms_msg3;
+	sgx_status_t* ms_dh_status;
+} ms_e2_process_message2_t;
+
+typedef struct ms_e2_seal_ciphertext_t {
+	unsigned char* ms_ciphertext;
+	uint32_t ms_ciphertext_size;
+	unsigned char* ms_selead_data;
+	uint32_t ms_sealed_data_size;
+	sgx_aes_gcm_128bit_tag_t* ms_p_in_mac;
+	int ms_mac_size;
+} ms_e2_seal_ciphertext_t;
+
 typedef struct ms_ocall_e2_print_string_t {
 	const char* ms_str;
 } ms_ocall_e2_print_string_t;
@@ -1069,11 +1093,305 @@ err:
 	return status;
 }
 
+static sgx_status_t SGX_CDECL sgx_e2_init_session(void* pms)
+{
+	CHECK_REF_POINTER(pms, sizeof(ms_e2_init_session_t));
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+	ms_e2_init_session_t* ms = SGX_CAST(ms_e2_init_session_t*, pms);
+	ms_e2_init_session_t __in_ms;
+	if (memcpy_s(&__in_ms, sizeof(ms_e2_init_session_t), ms, sizeof(ms_e2_init_session_t))) {
+		return SGX_ERROR_UNEXPECTED;
+	}
+	sgx_status_t status = SGX_SUCCESS;
+	sgx_status_t* _tmp_dh_status = __in_ms.ms_dh_status;
+	size_t _len_dh_status = sizeof(sgx_status_t);
+	sgx_status_t* _in_dh_status = NULL;
+
+	CHECK_UNIQUE_POINTER(_tmp_dh_status, _len_dh_status);
+
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+
+	if (_tmp_dh_status != NULL && _len_dh_status != 0) {
+		if ((_in_dh_status = (sgx_status_t*)malloc(_len_dh_status)) == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		memset((void*)_in_dh_status, 0, _len_dh_status);
+	}
+	e2_init_session(_in_dh_status);
+	if (_in_dh_status) {
+		if (memcpy_verw_s(_tmp_dh_status, _len_dh_status, _in_dh_status, _len_dh_status)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+	}
+
+err:
+	if (_in_dh_status) free(_in_dh_status);
+	return status;
+}
+
+static sgx_status_t SGX_CDECL sgx_e2_create_message1(void* pms)
+{
+	CHECK_REF_POINTER(pms, sizeof(ms_e2_create_message1_t));
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+	ms_e2_create_message1_t* ms = SGX_CAST(ms_e2_create_message1_t*, pms);
+	ms_e2_create_message1_t __in_ms;
+	if (memcpy_s(&__in_ms, sizeof(ms_e2_create_message1_t), ms, sizeof(ms_e2_create_message1_t))) {
+		return SGX_ERROR_UNEXPECTED;
+	}
+	sgx_status_t status = SGX_SUCCESS;
+	sgx_dh_msg1_t* _tmp_msg1 = __in_ms.ms_msg1;
+	size_t _len_msg1 = sizeof(sgx_dh_msg1_t);
+	sgx_dh_msg1_t* _in_msg1 = NULL;
+	sgx_status_t* _tmp_dh_status = __in_ms.ms_dh_status;
+	size_t _len_dh_status = sizeof(sgx_status_t);
+	sgx_status_t* _in_dh_status = NULL;
+
+	CHECK_UNIQUE_POINTER(_tmp_msg1, _len_msg1);
+	CHECK_UNIQUE_POINTER(_tmp_dh_status, _len_dh_status);
+
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+
+	if (_tmp_msg1 != NULL && _len_msg1 != 0) {
+		if ((_in_msg1 = (sgx_dh_msg1_t*)malloc(_len_msg1)) == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		memset((void*)_in_msg1, 0, _len_msg1);
+	}
+	if (_tmp_dh_status != NULL && _len_dh_status != 0) {
+		if ((_in_dh_status = (sgx_status_t*)malloc(_len_dh_status)) == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		memset((void*)_in_dh_status, 0, _len_dh_status);
+	}
+	e2_create_message1(_in_msg1, _in_dh_status);
+	if (_in_msg1) {
+		if (memcpy_verw_s(_tmp_msg1, _len_msg1, _in_msg1, _len_msg1)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+	}
+	if (_in_dh_status) {
+		if (memcpy_verw_s(_tmp_dh_status, _len_dh_status, _in_dh_status, _len_dh_status)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+	}
+
+err:
+	if (_in_msg1) free(_in_msg1);
+	if (_in_dh_status) free(_in_dh_status);
+	return status;
+}
+
+static sgx_status_t SGX_CDECL sgx_e2_process_message2(void* pms)
+{
+	CHECK_REF_POINTER(pms, sizeof(ms_e2_process_message2_t));
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+	ms_e2_process_message2_t* ms = SGX_CAST(ms_e2_process_message2_t*, pms);
+	ms_e2_process_message2_t __in_ms;
+	if (memcpy_s(&__in_ms, sizeof(ms_e2_process_message2_t), ms, sizeof(ms_e2_process_message2_t))) {
+		return SGX_ERROR_UNEXPECTED;
+	}
+	sgx_status_t status = SGX_SUCCESS;
+	const sgx_dh_msg2_t* _tmp_msg2 = __in_ms.ms_msg2;
+	size_t _len_msg2 = sizeof(sgx_dh_msg2_t);
+	sgx_dh_msg2_t* _in_msg2 = NULL;
+	sgx_dh_msg3_t* _tmp_msg3 = __in_ms.ms_msg3;
+	size_t _len_msg3 = sizeof(sgx_dh_msg3_t);
+	sgx_dh_msg3_t* _in_msg3 = NULL;
+	sgx_status_t* _tmp_dh_status = __in_ms.ms_dh_status;
+	size_t _len_dh_status = sizeof(sgx_status_t);
+	sgx_status_t* _in_dh_status = NULL;
+
+	CHECK_UNIQUE_POINTER(_tmp_msg2, _len_msg2);
+	CHECK_UNIQUE_POINTER(_tmp_msg3, _len_msg3);
+	CHECK_UNIQUE_POINTER(_tmp_dh_status, _len_dh_status);
+
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+
+	if (_tmp_msg2 != NULL && _len_msg2 != 0) {
+		_in_msg2 = (sgx_dh_msg2_t*)malloc(_len_msg2);
+		if (_in_msg2 == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		if (memcpy_s(_in_msg2, _len_msg2, _tmp_msg2, _len_msg2)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+
+	}
+	if (_tmp_msg3 != NULL && _len_msg3 != 0) {
+		if ((_in_msg3 = (sgx_dh_msg3_t*)malloc(_len_msg3)) == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		memset((void*)_in_msg3, 0, _len_msg3);
+	}
+	if (_tmp_dh_status != NULL && _len_dh_status != 0) {
+		if ((_in_dh_status = (sgx_status_t*)malloc(_len_dh_status)) == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		memset((void*)_in_dh_status, 0, _len_dh_status);
+	}
+	e2_process_message2((const sgx_dh_msg2_t*)_in_msg2, _in_msg3, _in_dh_status);
+	if (_in_msg3) {
+		if (memcpy_verw_s(_tmp_msg3, _len_msg3, _in_msg3, _len_msg3)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+	}
+	if (_in_dh_status) {
+		if (memcpy_verw_s(_tmp_dh_status, _len_dh_status, _in_dh_status, _len_dh_status)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+	}
+
+err:
+	if (_in_msg2) free(_in_msg2);
+	if (_in_msg3) free(_in_msg3);
+	if (_in_dh_status) free(_in_dh_status);
+	return status;
+}
+
+static sgx_status_t SGX_CDECL sgx_e2_show_secret_key(void* pms)
+{
+	sgx_status_t status = SGX_SUCCESS;
+	if (pms != NULL) return SGX_ERROR_INVALID_PARAMETER;
+	e2_show_secret_key();
+	return status;
+}
+
+static sgx_status_t SGX_CDECL sgx_e2_seal_ciphertext(void* pms)
+{
+	CHECK_REF_POINTER(pms, sizeof(ms_e2_seal_ciphertext_t));
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+	ms_e2_seal_ciphertext_t* ms = SGX_CAST(ms_e2_seal_ciphertext_t*, pms);
+	ms_e2_seal_ciphertext_t __in_ms;
+	if (memcpy_s(&__in_ms, sizeof(ms_e2_seal_ciphertext_t), ms, sizeof(ms_e2_seal_ciphertext_t))) {
+		return SGX_ERROR_UNEXPECTED;
+	}
+	sgx_status_t status = SGX_SUCCESS;
+	unsigned char* _tmp_ciphertext = __in_ms.ms_ciphertext;
+	uint32_t _tmp_ciphertext_size = __in_ms.ms_ciphertext_size;
+	size_t _len_ciphertext = _tmp_ciphertext_size;
+	unsigned char* _in_ciphertext = NULL;
+	unsigned char* _tmp_selead_data = __in_ms.ms_selead_data;
+	uint32_t _tmp_sealed_data_size = __in_ms.ms_sealed_data_size;
+	size_t _len_selead_data = _tmp_sealed_data_size;
+	unsigned char* _in_selead_data = NULL;
+	sgx_aes_gcm_128bit_tag_t* _tmp_p_in_mac = __in_ms.ms_p_in_mac;
+	int _tmp_mac_size = __in_ms.ms_mac_size;
+	size_t _len_p_in_mac = _tmp_mac_size;
+	sgx_aes_gcm_128bit_tag_t* _in_p_in_mac = NULL;
+
+	CHECK_UNIQUE_POINTER(_tmp_ciphertext, _len_ciphertext);
+	CHECK_UNIQUE_POINTER(_tmp_selead_data, _len_selead_data);
+	CHECK_UNIQUE_POINTER(_tmp_p_in_mac, _len_p_in_mac);
+
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+
+	if (_tmp_ciphertext != NULL && _len_ciphertext != 0) {
+		if ( _len_ciphertext % sizeof(*_tmp_ciphertext) != 0)
+		{
+			status = SGX_ERROR_INVALID_PARAMETER;
+			goto err;
+		}
+		_in_ciphertext = (unsigned char*)malloc(_len_ciphertext);
+		if (_in_ciphertext == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		if (memcpy_s(_in_ciphertext, _len_ciphertext, _tmp_ciphertext, _len_ciphertext)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+
+	}
+	if (_tmp_selead_data != NULL && _len_selead_data != 0) {
+		if ( _len_selead_data % sizeof(*_tmp_selead_data) != 0)
+		{
+			status = SGX_ERROR_INVALID_PARAMETER;
+			goto err;
+		}
+		if ((_in_selead_data = (unsigned char*)malloc(_len_selead_data)) == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		memset((void*)_in_selead_data, 0, _len_selead_data);
+	}
+	if (_tmp_p_in_mac != NULL && _len_p_in_mac != 0) {
+		if ((_in_p_in_mac = (sgx_aes_gcm_128bit_tag_t*)malloc(_len_p_in_mac)) == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		memset((void*)_in_p_in_mac, 0, _len_p_in_mac);
+	}
+	e2_seal_ciphertext(_in_ciphertext, _tmp_ciphertext_size, _in_selead_data, _tmp_sealed_data_size, _in_p_in_mac, _tmp_mac_size);
+	if (_in_selead_data) {
+		if (memcpy_verw_s(_tmp_selead_data, _len_selead_data, _in_selead_data, _len_selead_data)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+	}
+	if (_in_p_in_mac) {
+		if (memcpy_verw_s(_tmp_p_in_mac, _len_p_in_mac, _in_p_in_mac, _len_p_in_mac)) {
+			status = SGX_ERROR_UNEXPECTED;
+			goto err;
+		}
+	}
+
+err:
+	if (_in_ciphertext) free(_in_ciphertext);
+	if (_in_selead_data) free(_in_selead_data);
+	if (_in_p_in_mac) free(_in_p_in_mac);
+	return status;
+}
+
 SGX_EXTERNC const struct {
 	size_t nr_ecall;
-	struct {void* ecall_addr; uint8_t is_priv; uint8_t is_switchless;} ecall_table[9];
+	struct {void* ecall_addr; uint8_t is_priv; uint8_t is_switchless;} ecall_table[14];
 } g_ecall_table = {
-	9,
+	14,
 	{
 		{(void*)(uintptr_t)sgx_e2_get_sealed_data_size, 0, 0},
 		{(void*)(uintptr_t)sgx_e2_get_unsealed_data_size, 0, 0},
@@ -1084,16 +1402,21 @@ SGX_EXTERNC const struct {
 		{(void*)(uintptr_t)sgx_e2_extract_asset, 0, 0},
 		{(void*)(uintptr_t)sgx_e2_compare_hash, 0, 0},
 		{(void*)(uintptr_t)sgx_e2_change_password, 0, 0},
+		{(void*)(uintptr_t)sgx_e2_init_session, 0, 0},
+		{(void*)(uintptr_t)sgx_e2_create_message1, 0, 0},
+		{(void*)(uintptr_t)sgx_e2_process_message2, 0, 0},
+		{(void*)(uintptr_t)sgx_e2_show_secret_key, 0, 0},
+		{(void*)(uintptr_t)sgx_e2_seal_ciphertext, 1, 0},
 	}
 };
 
 SGX_EXTERNC const struct {
 	size_t nr_ocall;
-	uint8_t entry_table[1][9];
+	uint8_t entry_table[1][14];
 } g_dyn_entry_table = {
 	1,
 	{
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
 	}
 };
 

@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include "sgx_edger8r.h" /* for sgx_ocall etc. */
 
+#include "sgx_dh.h"
 
 #include <stdlib.h> /* for size_t */
 
@@ -17,6 +18,7 @@ extern "C" {
 
 uint32_t e1_get_sealed_data_size(uint32_t data_size);
 uint32_t e1_get_unsealed_data_size(unsigned char* sealed_data, uint32_t sealed_data_size);
+int e1_check_credentials(unsigned char* tpdv_data, unsigned char* author, unsigned char* password, uint32_t tpdv_data_size, size_t author_len, size_t password_len);
 void e1_create_tpdv(unsigned char* autor, unsigned char* password, size_t author_len, size_t password_len, unsigned char* sealed_data, uint32_t sealed_data_size);
 void e1_add_asset(unsigned char* tpdv_data, unsigned char* autor, unsigned char* password, unsigned char* asset_name, unsigned char* asset, uint32_t tpdv_data_size_unsealed, uint32_t tpdv_data_size, size_t author_len, size_t password_len, size_t asset_name_len, uint32_t asset_size, unsigned char* sealed_data, uint32_t sealed_data_size);
 void e1_list_assets(unsigned char* file_name, unsigned char* sealed_data, unsigned char* author, unsigned char* password, size_t file_name_len, uint32_t sealed_data_size, size_t author_len, size_t password_len);
@@ -24,6 +26,11 @@ uint32_t e1_get_asset_size(unsigned char* seal_data, int indice, uint32_t tpdv_d
 void e1_extract_asset(unsigned char* sealed_data, unsigned char* author, unsigned char* password, int indice, uint32_t sealed_data_size, size_t author_len, size_t password_len, unsigned char* unsealed_data, unsigned char* asset_name, uint32_t asset_size, size_t asset_name_len);
 void e1_compare_hash(unsigned char* sealed_data, unsigned char* author, unsigned char* password, int indice, unsigned char* hash, uint32_t sealed_data_size, size_t AUTHOR_SIZE, size_t PW_SIZE, size_t hash_size);
 void e1_change_password(unsigned char* tpdv_data, unsigned char* author, unsigned char* password, unsigned char* new_password, uint32_t tpdv_data_size, size_t author_len, size_t password_len, size_t new_password_len, unsigned char* sealed_data, uint32_t sealed_data_size);
+void e1_init_session(sgx_status_t* dh_status);
+void e1_process_message1(const sgx_dh_msg1_t* msg1, sgx_dh_msg2_t* msg2, sgx_status_t* dh_status);
+void e1_process_message3(const sgx_dh_msg3_t* msg3, sgx_status_t* dh_status);
+void e1_show_secret_key(void);
+void e1_get_TPDV_ciphered(unsigned char* tpdv_data, uint32_t tpdv_data_size, unsigned char* ciphered_tpdv_data, uint32_t ciphered_tpdv_data_size, sgx_aes_gcm_128bit_tag_t* p_out_mac, int mac_size);
 
 sgx_status_t SGX_CDECL ocall_e1_print_string(const char* str);
 

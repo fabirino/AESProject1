@@ -94,6 +94,30 @@ typedef struct ms_e2_change_password_t {
 	uint32_t ms_sealed_data_size;
 } ms_e2_change_password_t;
 
+typedef struct ms_e2_init_session_t {
+	sgx_status_t* ms_dh_status;
+} ms_e2_init_session_t;
+
+typedef struct ms_e2_create_message1_t {
+	sgx_dh_msg1_t* ms_msg1;
+	sgx_status_t* ms_dh_status;
+} ms_e2_create_message1_t;
+
+typedef struct ms_e2_process_message2_t {
+	const sgx_dh_msg2_t* ms_msg2;
+	sgx_dh_msg3_t* ms_msg3;
+	sgx_status_t* ms_dh_status;
+} ms_e2_process_message2_t;
+
+typedef struct ms_e2_seal_ciphertext_t {
+	unsigned char* ms_ciphertext;
+	uint32_t ms_ciphertext_size;
+	unsigned char* ms_selead_data;
+	uint32_t ms_sealed_data_size;
+	sgx_aes_gcm_128bit_tag_t* ms_p_in_mac;
+	int ms_mac_size;
+} ms_e2_seal_ciphertext_t;
+
 typedef struct ms_ocall_e2_print_string_t {
 	const char* ms_str;
 } ms_ocall_e2_print_string_t;
@@ -250,6 +274,57 @@ sgx_status_t e2_change_password(sgx_enclave_id_t eid, unsigned char* tpdv_data, 
 	ms.ms_sealed_data = sealed_data;
 	ms.ms_sealed_data_size = sealed_data_size;
 	status = sgx_ecall(eid, 8, &ocall_table_Enclave2, &ms);
+	return status;
+}
+
+sgx_status_t e2_init_session(sgx_enclave_id_t eid, sgx_status_t* dh_status)
+{
+	sgx_status_t status;
+	ms_e2_init_session_t ms;
+	ms.ms_dh_status = dh_status;
+	status = sgx_ecall(eid, 9, &ocall_table_Enclave2, &ms);
+	return status;
+}
+
+sgx_status_t e2_create_message1(sgx_enclave_id_t eid, sgx_dh_msg1_t* msg1, sgx_status_t* dh_status)
+{
+	sgx_status_t status;
+	ms_e2_create_message1_t ms;
+	ms.ms_msg1 = msg1;
+	ms.ms_dh_status = dh_status;
+	status = sgx_ecall(eid, 10, &ocall_table_Enclave2, &ms);
+	return status;
+}
+
+sgx_status_t e2_process_message2(sgx_enclave_id_t eid, const sgx_dh_msg2_t* msg2, sgx_dh_msg3_t* msg3, sgx_status_t* dh_status)
+{
+	sgx_status_t status;
+	ms_e2_process_message2_t ms;
+	ms.ms_msg2 = msg2;
+	ms.ms_msg3 = msg3;
+	ms.ms_dh_status = dh_status;
+	status = sgx_ecall(eid, 11, &ocall_table_Enclave2, &ms);
+	return status;
+}
+
+sgx_status_t e2_show_secret_key(sgx_enclave_id_t eid)
+{
+	sgx_status_t status;
+	status = sgx_ecall(eid, 12, &ocall_table_Enclave2, NULL);
+	return status;
+}
+
+sgx_status_t e2_seal_ciphertext(sgx_enclave_id_t eid, unsigned char* ciphertext, uint32_t ciphertext_size, unsigned char* selead_data, uint32_t sealed_data_size, sgx_aes_gcm_128bit_tag_t* p_in_mac, int mac_size)
+{
+	sgx_status_t status;
+	ms_e2_seal_ciphertext_t ms;
+	ms.ms_ciphertext = ciphertext;
+	ms.ms_ciphertext_size = ciphertext_size;
+	ms.ms_selead_data = selead_data;
+	ms.ms_sealed_data_size = sealed_data_size;
+	ms.ms_p_in_mac = p_in_mac;
+	ms.ms_mac_size = mac_size;
+	status = sgx_ecall(eid, 13, &ocall_table_Enclave2, &ms);
 	return status;
 }
 

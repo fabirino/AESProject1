@@ -170,9 +170,29 @@ void ocall_e1_print_string(const char *str) {
     printf("%s", str);
 }
 
+/*
+ * Enclave2 stuff
+ */
+
+sgx_enclave_id_t global_eid2 = 0;
+
+int initialize_enclave2(void) {
+    sgx_status_t ret;
+
+    if ((ret = sgx_create_enclave(ENCLAVE2_FILENAME, SGX_DEBUG_FLAG, NULL, NULL, &global_eid2, NULL)) != SGX_SUCCESS) {
+        print_error_message(ret, "sgx_create_enclave (enclave2)");
+        return -1;
+    }
+    return 0;
+}
+
 void ocall_e2_print_string(const char *str) {
     printf("%s", str);
 }
+
+/*
+ * Aux functions
+ */
 
 int TPDV_exists(unsigned char *file_name) {
     char path[FILE_NAME_SIZE + 8] = "./TPDVs/";
@@ -326,12 +346,13 @@ void save_asset(unsigned char *asset_name, unsigned char *asset_content, size_t 
  * Application entry
  */
 
-// #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
-// =========================================================================================================================================
-// #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
-
 int SGX_CDECL main(int argc, char *argv[]) {
     sgx_status_t ret;
+    sgx_status_t dh_status;
+
+    sgx_dh_msg1_t msg1;
+    sgx_dh_msg2_t msg2;
+    sgx_dh_msg3_t msg3;
 
     if (initialize_enclave1() < 0)
         return 1;
@@ -340,6 +361,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
     int opcao = -1;
     int status = 0;
     unsigned char file_name[FILE_NAME_SIZE] = {};
+    unsigned char file_name_clone[FILE_NAME_SIZE] = {};
     unsigned char author[AUTHOR_SIZE] = {};
     unsigned char password[PW_SIZE] = {};
     unsigned char assets = '\0';
@@ -357,6 +379,9 @@ int SGX_CDECL main(int argc, char *argv[]) {
     unsigned char *tpdv_data = NULL;
     uint32_t total_size = 0;
     unsigned char new_password[PW_SIZE] = {0};
+    uint32_t cipher_size = 0;
+    unsigned char *cipher;
+    sgx_aes_gcm_128bit_tag_t *p_mac = NULL;
 
     int i = 0;
     int byte;
@@ -373,6 +398,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
         // Reset variables after each iteration of the loop
         status = 0;
         memset(file_name, 0, FILE_NAME_SIZE);
+        memset(file_name_clone, 0, FILE_NAME_SIZE);
         memset(author, 0, AUTHOR_SIZE);
         memset(password, 0, PW_SIZE);
         assets = '\0';
@@ -390,6 +416,10 @@ int SGX_CDECL main(int argc, char *argv[]) {
         tpdv_data_size = 0;
         total_size = 0;
         memset(new_password, 0, PW_SIZE);
+        cipher_size = 0;
+        cipher = NULL;
+        p_mac = NULL;
+
 
         // Print menu
         printf("\nSelecione uma opção\n");
@@ -830,6 +860,149 @@ int SGX_CDECL main(int argc, char *argv[]) {
         // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
         case '7':
             // 7 - Clonar o conteudo do TPDV
+
+            // Init 2 enclave
+            if (initialize_enclave2() < 0)
+                return 1;
+
+            printf("Introduza o nome do ficheiro TPDV a clonar: ");
+            fgets((char *)file_name, FILE_NAME_SIZE, stdin);
+            for (int j = 0; j < FILE_NAME_SIZE; j++) {
+                if (file_name[j] == '\n') {
+                    file_name[j] = '\0';
+                    break;
+                }
+            }
+
+            printf("Introduza o nome do ficheiro TPDV clone: ");
+            fgets((char *)file_name_clone, FILE_NAME_SIZE, stdin);
+            for (int j = 0; j < FILE_NAME_SIZE; j++) {
+                if (file_name_clone[j] == '\n') {
+                    file_name_clone[j] = '\0';
+                    break;
+                }
+            }
+
+            printf("Introduza o seu nome: ");
+            fgets((char *)author, AUTHOR_SIZE, stdin);
+            for (int j = 0; j < AUTHOR_SIZE; j++) {
+                if (author[j] == '\n') {
+                    author[j] = '\0';
+                    break;
+                }
+            }
+
+            printf("Introduza a sua palavra passe: ");
+            fgets((char *)password, PW_SIZE, stdin);
+            for (int j = 0; j < PW_SIZE; j++) {
+                if (password[j] == '\n') {
+                    password[j] = '\0';
+                    break;
+                }
+            }
+            printf("\n");
+
+            // Verificar se o ficheiro existe
+            if (!TPDV_exists(file_name)) {
+                printf("Operação cancelada: o ficheiro não existe.\n");
+                break;
+            }
+
+            // Carregar o TPDV
+            tpdv_data_size = get_TPDV_size(file_name);
+            tpdv_data = (unsigned char *)malloc(tpdv_data_size);
+            load_sealed_data(file_name, tpdv_data, tpdv_data_size);
+
+            // Check credentials
+            if ((ret = e1_check_credentials(global_eid1, &status, tpdv_data, author, password, tpdv_data_size, AUTHOR_SIZE, PW_SIZE)) != SGX_SUCCESS) {
+                print_error_message(ret, "e1_check_credentials");
+                return 1;
+            }
+
+            if (status == 0) {
+                printf("Operação cancelada: credenciais inválidas.\n");
+                break;
+            }
+
+            // Diffie Hellman para gerar a chave de encriptação entre os dois enclaves
+            if ((ret = e1_init_session(global_eid1, &dh_status)) != SGX_SUCCESS || dh_status != SGX_SUCCESS) {
+                print_error_message((ret != SGX_SUCCESS) ? ret : dh_status, "e1_init_session");
+                return 1;
+            }
+
+            if ((ret = e2_init_session(global_eid2, &dh_status)) != SGX_SUCCESS || dh_status != SGX_SUCCESS) {
+                print_error_message((ret != SGX_SUCCESS) ? ret : dh_status, "e2_init_session");
+                return 1;
+            }
+
+            if ((ret = e2_create_message1(global_eid2, &msg1, &dh_status)) != SGX_SUCCESS || dh_status != SGX_SUCCESS) {
+                print_error_message((ret != SGX_SUCCESS) ? ret : dh_status, "e2_create_message1");
+                return 1;
+            }
+
+            if ((ret = e1_process_message1(global_eid1, &msg1, &msg2, &dh_status)) != SGX_SUCCESS || dh_status != SGX_SUCCESS) {
+                print_error_message((ret != SGX_SUCCESS) ? ret : dh_status, "e1_process_message1");
+                return 1;
+            }
+
+            if ((ret = e2_process_message2(global_eid2, &msg2, &msg3, &dh_status)) != SGX_SUCCESS || dh_status != SGX_SUCCESS) {
+                print_error_message((ret != SGX_SUCCESS) ? ret : dh_status, "e2_process_message2");
+                return 1;
+            }
+
+            if ((ret = e1_process_message3(global_eid1, &msg3, &dh_status)) != SGX_SUCCESS || dh_status != SGX_SUCCESS) {
+                print_error_message((ret != SGX_SUCCESS) ? ret : dh_status, "e1_process_message3");
+                return 1;
+            }
+
+            // DEBUG:
+            // if ((ret = e1_show_secret_key(global_eid1)) != SGX_SUCCESS) {
+            //     print_error_message(ret, "e1_show_secret_key");
+            //     return 1;
+            // }
+            // if ((ret = e2_show_secret_key(global_eid2)) != SGX_SUCCESS) {
+            //     print_error_message(ret, "e2_show_secret_key");
+            //     return 1;
+            // }
+
+            // Obter o size unsealed
+            // if ((ret = e1_get_unsealed_data_size(global_eid1, &unsealed_data_size, tpdv_data, tpdv_data_size)) != SGX_SUCCESS) {
+            //     print_error_message(ret, "e1_get_unsealed_data_size");
+            //     return 1;
+            // }
+
+            // // Obter o conteudo do TPDV cifrado com a chave partilhada
+            // cipher_size = unsealed_data_size + 12; // 12 bytes for the IV
+            // cipher = (unsigned char *)malloc(cipher_size);
+
+
+            // // Obter o conteudo do TPDV unsealed cifrado
+            // if ((ret = e1_get_TPDV_ciphered(global_eid1, tpdv_data, tpdv_data_size, cipher, cipher_size, p_mac, SGX_AESGCM_MAC_SIZE)) != SGX_SUCCESS) {
+            //     print_error_message(ret, "e1_get_TPDV_ciphered");
+            //     return 1;
+            // }
+
+            // // Enviar o conteudo ao 2 Enclave para ele guardar e selar com a sua chave
+            // if ((ret = e2_get_sealed_data_size(global_eid2, &sealed_data_size, cipher_size)) != SGX_SUCCESS) {
+            //     print_error_message(ret, "e2_get_sealed_data_size");
+            //     return 1;
+            // }
+
+
+            // sealed_data = (unsigned char *)malloc(sealed_data_size);
+
+            // if ((ret = e2_seal_ciphertext(global_eid2, cipher, cipher_size, sealed_data, sealed_data_size, p_mac, SGX_AESGCM_MAC_SIZE)) != SGX_SUCCESS) {
+            //     print_error_message(ret, "e2_seal_ciphertext");
+            //     return 1;
+            // }
+
+
+
+            // Destroy 2 enclave
+            if ((ret = sgx_destroy_enclave(global_eid2)) != SGX_SUCCESS) {
+                print_error_message(ret, "sgx_destroy_enclave (enclave2)");
+                return 1;
+            }
 
             break;
         // case '\n':

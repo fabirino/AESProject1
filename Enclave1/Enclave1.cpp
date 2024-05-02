@@ -37,16 +37,19 @@
 
 #include "Enclave1.h"
 #include "Enclave1_t.h" /* e1_print_string */
-#include "sgx_tprotected_fs.h"
-#include "sgx_tcrypto.h"
-#include "sgx_trts.h"
-#include "sgx_tseal.h"
+#include "sgx_dh.h"
+
 
 #define HEADER_SIZE 25
 #define AUTHOR_SIZE 10
 #define PW_SIZE 10
 #define NUM_ASSETS 1
 #define NONCE_SIZE 4
+
+static sgx_dh_session_t e1_session;
+static sgx_key_128bit_t e1_aek;
+static sgx_dh_session_enclave_identity_t e1_responder_identity;
+sgx_aes_gcm_128bit_tag_t *p_mac;
 
 /*
  * printf:
@@ -101,7 +104,7 @@ uint32_t e1_get_unsealed_data_size(unsigned char *sealed_data, uint32_t sealed_d
     return sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)sealed_data);
 }
 
-void calculate_nonce(unsigned char *content, unsigned char *nonce){
+void calculate_nonce(unsigned char *content, unsigned char *nonce) {
 
     // Calculate the nonce with sha256 of the content
     sgx_sha256_hash_t hash_result;
@@ -127,7 +130,6 @@ void calculate_nonce(unsigned char *content, unsigned char *nonce){
 
     // Copy the first 4 bytes of the hash to the nonce
     memcpy(nonce, hash_result, 4);
-
 }
 
 int unseal_data(const uint8_t *sealed_data, size_t sealed_data_size, unsigned char *unsealed_data) {
@@ -169,7 +171,7 @@ int unseal_data(const uint8_t *sealed_data, size_t sealed_data_size, unsigned ch
             printf("ENCLAVE: Nonce alterado, integridade do ficheiro comprometida\n");
             return 0;
         }
-    } 
+    }
 
     free(de_mac_text);
 
@@ -182,6 +184,33 @@ int check_credentials(unsigned char *actual_password, unsigned char *actual_auth
     } else {
         return 0;
     }
+}
+
+int e1_check_credentials(unsigned char *tpdv_data, unsigned char *author, unsigned char *password, uint32_t tpdv_data_size, size_t author_leh, size_t password_len) {
+    uint32_t unsealed_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)tpdv_data);
+
+    unsigned char *temp_buf = (unsigned char *)malloc(unsealed_size);
+    if (temp_buf == NULL) {
+        printf("ENCLAVE: Error allocating memory for sealed data\n");
+        return 0;
+    }
+
+    if (!unseal_data(tpdv_data, tpdv_data_size, temp_buf)) {
+        return 0;
+    }
+
+    // Check credentials
+    unsigned char actual_author[AUTHOR_SIZE] = {0};
+    unsigned char actual_password[PW_SIZE] = {0};
+    memcpy(actual_author, temp_buf, AUTHOR_SIZE);
+    memcpy(actual_password, temp_buf + AUTHOR_SIZE, PW_SIZE);
+
+    if (!check_credentials(actual_password, actual_author, password, author)) {
+        printf("ENCLAVE: Invalid credentials\n");
+        return 0;
+    }
+
+    return 1;
 }
 
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
@@ -237,7 +266,7 @@ void e1_add_asset(unsigned char *tpdv_data, unsigned char *author, unsigned char
         return;
     }
 
-    if (!unseal_data(tpdv_data, tpdv_data_size_sealed, temp_buf)){
+    if (!unseal_data(tpdv_data, tpdv_data_size_sealed, temp_buf)) {
         return;
     }
 
@@ -281,7 +310,6 @@ void e1_add_asset(unsigned char *tpdv_data, unsigned char *author, unsigned char
     calculate_nonce(new_tpdv_data + HEADER_SIZE, nonce);
     memcpy(new_tpdv_data + AUTHOR_SIZE + PW_SIZE + 1, nonce, 4);
 
-
     // Seal the new TPDV data
     unsigned char *temp_buf2 = (unsigned char *)malloc(sealed_data_size);
     if (temp_buf2 == NULL) {
@@ -301,7 +329,7 @@ void e1_add_asset(unsigned char *tpdv_data, unsigned char *author, unsigned char
 // =================================================================== 3 ===================================================================
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
 
-void e1_list_assets(unsigned char * file_name, unsigned char *sealed_data, unsigned char *author, unsigned char *password, size_t file_name_size, uint32_t sealed_data_size, size_t author_len, size_t password_len) {
+void e1_list_assets(unsigned char *file_name, unsigned char *sealed_data, unsigned char *author, unsigned char *password, size_t file_name_size, uint32_t sealed_data_size, size_t author_len, size_t password_len) {
     printf("ENCLAVE: Listing assets from TPDV\n");
 
     uint32_t unsealed_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)sealed_data);
@@ -312,7 +340,7 @@ void e1_list_assets(unsigned char * file_name, unsigned char *sealed_data, unsig
         return;
     }
 
-    if (!unseal_data(sealed_data, sealed_data_size, temp_buf)){
+    if (!unseal_data(sealed_data, sealed_data_size, temp_buf)) {
         return;
     }
 
@@ -340,7 +368,7 @@ void e1_list_assets(unsigned char * file_name, unsigned char *sealed_data, unsig
     printf("\n");
 
     uint32_t pointer = HEADER_SIZE; // Skip the header
-    
+
     for (int i = 0; i < num_assets; i++) {
         unsigned char asset_name[20] = {0};
         unsigned char asset_size_bytes[4] = {0};
@@ -364,7 +392,6 @@ void e1_list_assets(unsigned char * file_name, unsigned char *sealed_data, unsig
         printf("\n");
     }
 
-
     free(temp_buf);
 }
 
@@ -372,7 +399,7 @@ void e1_list_assets(unsigned char * file_name, unsigned char *sealed_data, unsig
 // =================================================================== 4 ===================================================================
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
 
-uint32_t e1_get_asset_size(unsigned char *sealed_data, int indice, uint32_t sealed_data_size){
+uint32_t e1_get_asset_size(unsigned char *sealed_data, int indice, uint32_t sealed_data_size) {
 
     uint32_t unsealed_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)sealed_data);
 
@@ -412,7 +439,7 @@ uint32_t e1_get_asset_size(unsigned char *sealed_data, int indice, uint32_t seal
     return asset_size;
 }
 
-void e1_extract_asset(unsigned char *sealed_data, unsigned char *author, unsigned char *password, int indice, uint32_t sealed_data_size, size_t author_len, size_t password_len, unsigned char *unsealed_data, unsigned char* asset_name, uint32_t asset_size, size_t asset_name_len) {
+void e1_extract_asset(unsigned char *sealed_data, unsigned char *author, unsigned char *password, int indice, uint32_t sealed_data_size, size_t author_len, size_t password_len, unsigned char *unsealed_data, unsigned char *asset_name, uint32_t asset_size, size_t asset_name_len) {
     printf("ENCLAVE: Extracting asset %d\n", indice);
 
     uint32_t unsealed_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)sealed_data);
@@ -423,7 +450,7 @@ void e1_extract_asset(unsigned char *sealed_data, unsigned char *author, unsigne
         return;
     }
 
-    if (!unseal_data(sealed_data, sealed_data_size, temp_buf)){
+    if (!unseal_data(sealed_data, sealed_data_size, temp_buf)) {
         return;
     }
 
@@ -437,8 +464,6 @@ void e1_extract_asset(unsigned char *sealed_data, unsigned char *author, unsigne
         printf("ENCLAVE: Invalid credentials\n");
         return;
     }
-
-    
 
     uint32_t pointer = HEADER_SIZE; // Skip the header
     uint32_t current_asset_size = 0;
@@ -461,7 +486,6 @@ void e1_extract_asset(unsigned char *sealed_data, unsigned char *author, unsigne
     // Get the asset content
     memcpy(unsealed_data, temp_buf + pointer, asset_size);
     free(temp_buf);
-
 }
 
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
@@ -480,7 +504,7 @@ void e1_compare_hash(unsigned char *tpdv_data, unsigned char *author, unsigned c
         return;
     }
 
-    if (!unseal_data(tpdv_data, tpdv_data_size, temp_buf)){
+    if (!unseal_data(tpdv_data, tpdv_data_size, temp_buf)) {
         return;
     }
 
@@ -559,15 +583,12 @@ void e1_compare_hash(unsigned char *tpdv_data, unsigned char *author, unsigned c
     //     printf("%02x", hash_result[i]);
     // }
     // printf("\n");
-    
 
     if (memcmp(hash, hash_result, hash_len) == 0) {
         printf("ENCLAVE: Hashes match\n");
     } else {
         printf("ENCLAVE: Hashes do not match\n");
     }
-
-
 }
 
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
@@ -585,7 +606,7 @@ void e1_change_password(unsigned char *tpdv_data, unsigned char *author, unsigne
         return;
     }
 
-    if (!unseal_data(tpdv_data, tpdv_data_size, temp_buf)){
+    if (!unseal_data(tpdv_data, tpdv_data_size, temp_buf)) {
         return;
     }
 
@@ -600,7 +621,6 @@ void e1_change_password(unsigned char *tpdv_data, unsigned char *author, unsigne
         return;
     }
 
-
     // Change the password
     memcpy(temp_buf + AUTHOR_SIZE, new_password, new_password_len);
 
@@ -614,5 +634,55 @@ void e1_change_password(unsigned char *tpdv_data, unsigned char *author, unsigne
     seal_data(temp_buf, unsealed_size, temp_buf2);
 
     memcpy(sealed_data, temp_buf2, sealed_data_size);
+}
+
+// #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
+// =================================================================== 7 ===================================================================
+// #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
+
+void e1_init_session(sgx_status_t *dh_status) {
+    *dh_status = sgx_dh_init_session(SGX_DH_SESSION_INITIATOR, &e1_session);
+}
+
+void e1_process_message1(const sgx_dh_msg1_t *msg1, sgx_dh_msg2_t *msg2, sgx_status_t *dh_status) {
+    *dh_status = sgx_dh_initiator_proc_msg1(msg1, msg2, &e1_session);
+}
+
+void e1_process_message3(const sgx_dh_msg3_t *msg3, sgx_status_t *dh_status) {
+    *dh_status = sgx_dh_initiator_proc_msg3(msg3, &e1_session, &e1_aek, &e1_responder_identity);
+}
+
+void e1_show_secret_key(void) {
+    printf("Enclave 1 AEK:");
+    for (int i = 0; i < 16; i++)
+        printf(" %02X", 0xFF & (int)e1_aek[i]);
+    printf("\n");
+}
+
+
+void e1_get_TPDV_ciphered(unsigned char *tpdv_data, uint32_t tpdv_data_size, unsigned char *ciphered_tpdv_data, uint32_t ciphered_tpdv_data_size, sgx_aes_gcm_128bit_tag_t *p_out_mac, int mac_size) {
+    
+    // Unsealed data
+    uint32_t unsealed_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)tpdv_data);
+
+    unsigned char *temp_buf = (unsigned char *)malloc(unsealed_size);
+    if (temp_buf == NULL) {
+        printf("ENCLAVE: Error allocating memory for sealed data\n");
+        return;
+    }
+
+    if (!unseal_data(tpdv_data, tpdv_data_size, temp_buf)) {
+        return;
+    }
+
+    
+    // Cipher the TPDV data with the shared key
+    uint8_t iv[12] = {0};
+    sgx_status_t ret = sgx_rijndael128GCM_encrypt(&e1_aek, temp_buf, unsealed_size, ciphered_tpdv_data, iv, 12, (uint8_t *) aad_mac_text, strlen(aad_mac_text), p_out_mac);
+    
+    if (ret != SGX_SUCCESS) {
+        printf("ENCLAVE: Error encrypting TPDV data\n");
+        printf("ENCALVE: ret %d\n", ret);
+    }
 
 }

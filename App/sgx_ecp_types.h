@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2018 Intel Corporation. All rights reserved.
+ * Copyright (C) 2011-2021 Intel Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,30 +30,31 @@
  */
 
 
-#ifndef _APP_H_
-#define _APP_H_
 
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
+#ifndef _SGX_ECP_TYPES_H_
+#define _SGX_ECP_TYPES_H_
 
-#include "sgx_error.h"       /* sgx_status_t */
-#include "sgx_eid.h"     /* sgx_enclave_id_t */
+#include <stdint.h>
 
+#pragma pack(push, 1)
 
-#define ENCLAVE1_FILENAME "enclave1.signed.so"
-#define ENCLAVE2_FILENAME "enclave2.signed.so"
+#include "sgx_tcrypto.h"
 
-
-#if defined(__cplusplus)
-extern "C" {
+#ifndef SGX_FEBITSIZE
+#define SGX_FEBITSIZE                   256
 #endif
 
-#if defined(__cplusplus)
-}
+typedef struct _ecc_param_t
+{
+    uint32_t eccP[SGX_NISTP_ECP256_KEY_SIZE];     /* EC prime field */
+    uint32_t eccA[SGX_NISTP_ECP256_KEY_SIZE];     /* EC curve coefficient A */
+    uint32_t eccB[SGX_NISTP_ECP256_KEY_SIZE];     /* EC curve coefficient B */
+    uint32_t eccG[2][SGX_NISTP_ECP256_KEY_SIZE];  /* ECC base point */
+    uint32_t eccR[SGX_NISTP_ECP256_KEY_SIZE];     /* ECC base point order */
+} sgx_ecc_param_t;
+
+typedef uint8_t sgx_ec_key_128bit_t[SGX_CMAC_KEY_SIZE];
+
+#pragma pack(pop)
+
 #endif
-
-#include "sgx_dh.h"
-
-#endif /* !_APP_H_ */
