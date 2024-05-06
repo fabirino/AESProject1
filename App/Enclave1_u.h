@@ -36,7 +36,7 @@ sgx_status_t e1_init_session(sgx_enclave_id_t eid, sgx_status_t* dh_status);
 sgx_status_t e1_process_message1(sgx_enclave_id_t eid, const sgx_dh_msg1_t* msg1, sgx_dh_msg2_t* msg2, sgx_status_t* dh_status);
 sgx_status_t e1_process_message3(sgx_enclave_id_t eid, const sgx_dh_msg3_t* msg3, sgx_status_t* dh_status);
 sgx_status_t e1_show_secret_key(sgx_enclave_id_t eid);
-sgx_status_t e1_get_TPDV_ciphered(sgx_enclave_id_t eid, unsigned char* tpdv_data, uint32_t tpdv_data_size, unsigned char* ciphered_tpdv_data, uint32_t ciphered_tpdv_data_size, sgx_aes_gcm_128bit_tag_t* p_out_mac, int mac_size);
+sgx_status_t e1_get_TPDV_ciphered(sgx_enclave_id_t eid, unsigned char* tpdv_data, uint32_t tpdv_data_size, unsigned char* ciphered_tpdv_data, uint32_t ciphered_tpdv_data_size);
 
 #ifdef __cplusplus
 }

@@ -357,6 +357,9 @@ int SGX_CDECL main(int argc, char *argv[]) {
     if (initialize_enclave1() < 0)
         return 1;
 
+    if (initialize_enclave2() < 0)
+        return 1;
+
     int terminar = 0;
     int opcao = -1;
     int status = 0;
@@ -382,6 +385,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
     uint32_t cipher_size = 0;
     unsigned char *cipher;
     sgx_aes_gcm_128bit_tag_t *p_mac = NULL;
+    int enclave = 0;
 
     int i = 0;
     int byte;
@@ -419,7 +423,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
         cipher_size = 0;
         cipher = NULL;
         p_mac = NULL;
-
+        enclave = 0;
 
         // Print menu
         printf("\nSelecione uma opção\n");
@@ -608,6 +612,15 @@ int SGX_CDECL main(int argc, char *argv[]) {
                 }
             }
 
+            printf("Introduza o Enclave onde está o TPDV (1 ou 2): ");
+            scanf("%d", &enclave);
+            getchar();
+
+            if (enclave != 1 && enclave != 2) {
+                printf("Operação cancelada: o enclave não existe.\n");
+                break;
+            }
+
             printf("Introduza o seu nome: ");
             fgets((char *)author, AUTHOR_SIZE, stdin);
             for (int j = 0; j < AUTHOR_SIZE; j++) {
@@ -638,15 +651,28 @@ int SGX_CDECL main(int argc, char *argv[]) {
 
             load_sealed_data(file_name, sealed_data, sealed_data_size);
 
-            if ((ret = e1_get_unsealed_data_size(global_eid1, &unsealed_data_size, sealed_data, sealed_data_size)) != SGX_SUCCESS) {
-                print_error_message(ret, "e1_get_unsealed_data_size");
-                return 1;
-            }
+            if (enclave == 1) {
+                if ((ret = e1_get_unsealed_data_size(global_eid1, &unsealed_data_size, sealed_data, sealed_data_size)) != SGX_SUCCESS) {
+                    print_error_message(ret, "e1_get_unsealed_data_size");
+                    return 1;
+                }
 
-            // ecall para listar os assets
-            if ((ret = e1_list_assets(global_eid1, file_name, sealed_data, author, password, FILE_NAME_SIZE, sealed_data_size, AUTHOR_SIZE, PW_SIZE)) != SGX_SUCCESS) {
-                print_error_message(ret, "e1_list_assets");
-                return 1;
+                // ecall para listar os assets
+                if ((ret = e1_list_assets(global_eid1, file_name, sealed_data, author, password, FILE_NAME_SIZE, sealed_data_size, AUTHOR_SIZE, PW_SIZE)) != SGX_SUCCESS) {
+                    print_error_message(ret, "e1_list_assets");
+                    return 1;
+                }
+            } else {
+                if ((ret = e2_get_unsealed_data_size(global_eid2, &unsealed_data_size, sealed_data, sealed_data_size)) != SGX_SUCCESS) {
+                    print_error_message(ret, "e1_get_unsealed_data_size");
+                    return 1;
+                }
+
+                // ecall para listar os assets
+                if ((ret = e2_list_assets(global_eid2, file_name, sealed_data, author, password, FILE_NAME_SIZE, sealed_data_size, AUTHOR_SIZE, PW_SIZE)) != SGX_SUCCESS) {
+                    print_error_message(ret, "e1_list_assets");
+                    return 1;
+                }
             }
 
             break;
@@ -861,10 +887,6 @@ int SGX_CDECL main(int argc, char *argv[]) {
         case '7':
             // 7 - Clonar o conteudo do TPDV
 
-            // Init 2 enclave
-            if (initialize_enclave2() < 0)
-                return 1;
-
             printf("Introduza o nome do ficheiro TPDV a clonar: ");
             fgets((char *)file_name, FILE_NAME_SIZE, stdin);
             for (int j = 0; j < FILE_NAME_SIZE; j++) {
@@ -924,6 +946,16 @@ int SGX_CDECL main(int argc, char *argv[]) {
                 break;
             }
 
+            // Obter o size unsealed
+            if ((ret = e1_get_unsealed_data_size(global_eid1, &unsealed_data_size, tpdv_data, tpdv_data_size)) != SGX_SUCCESS) {
+                print_error_message(ret, "e1_get_unsealed_data_size");
+                return 1;
+            }
+
+            // Variavel para o a cifra do TPDV
+            cipher_size = unsealed_data_size;
+            cipher = (unsigned char *)malloc(cipher_size);
+
             // Diffie Hellman para gerar a chave de encriptação entre os dois enclaves
             if ((ret = e1_init_session(global_eid1, &dh_status)) != SGX_SUCCESS || dh_status != SGX_SUCCESS) {
                 print_error_message((ret != SGX_SUCCESS) ? ret : dh_status, "e1_init_session");
@@ -965,44 +997,29 @@ int SGX_CDECL main(int argc, char *argv[]) {
             //     return 1;
             // }
 
-            // Obter o size unsealed
-            // if ((ret = e1_get_unsealed_data_size(global_eid1, &unsealed_data_size, tpdv_data, tpdv_data_size)) != SGX_SUCCESS) {
-            //     print_error_message(ret, "e1_get_unsealed_data_size");
-            //     return 1;
-            // }
+            // Obter o conteudo do TPDV cifrado com a chave partilhada
+            cipher_size = unsealed_data_size;
+            cipher = (unsigned char *)malloc(cipher_size);
 
-            // // Obter o conteudo do TPDV cifrado com a chave partilhada
-            // cipher_size = unsealed_data_size + 12; // 12 bytes for the IV
-            // cipher = (unsigned char *)malloc(cipher_size);
-
-
-            // // Obter o conteudo do TPDV unsealed cifrado
-            // if ((ret = e1_get_TPDV_ciphered(global_eid1, tpdv_data, tpdv_data_size, cipher, cipher_size, p_mac, SGX_AESGCM_MAC_SIZE)) != SGX_SUCCESS) {
-            //     print_error_message(ret, "e1_get_TPDV_ciphered");
-            //     return 1;
-            // }
-
-            // // Enviar o conteudo ao 2 Enclave para ele guardar e selar com a sua chave
-            // if ((ret = e2_get_sealed_data_size(global_eid2, &sealed_data_size, cipher_size)) != SGX_SUCCESS) {
-            //     print_error_message(ret, "e2_get_sealed_data_size");
-            //     return 1;
-            // }
-
-
-            // sealed_data = (unsigned char *)malloc(sealed_data_size);
-
-            // if ((ret = e2_seal_ciphertext(global_eid2, cipher, cipher_size, sealed_data, sealed_data_size, p_mac, SGX_AESGCM_MAC_SIZE)) != SGX_SUCCESS) {
-            //     print_error_message(ret, "e2_seal_ciphertext");
-            //     return 1;
-            // }
-
-
-
-            // Destroy 2 enclave
-            if ((ret = sgx_destroy_enclave(global_eid2)) != SGX_SUCCESS) {
-                print_error_message(ret, "sgx_destroy_enclave (enclave2)");
+            // Obter o conteudo do TPDV unsealed cifrado
+            if ((ret = e1_get_TPDV_ciphered(global_eid1, tpdv_data, tpdv_data_size, cipher, cipher_size)) != SGX_SUCCESS) {
+                print_error_message(ret, "e1_get_TPDV_ciphered");
                 return 1;
             }
+
+            sealed_data = (unsigned char *)malloc(tpdv_data_size);
+
+            if ((ret = e2_seal_ciphertext(global_eid2, cipher, cipher_size, sealed_data, tpdv_data_size)) != SGX_SUCCESS) {
+                print_error_message(ret, "e2_seal_ciphertext");
+                return 1;
+            }
+
+            // Guardar o ficheiro
+            save_sealed_data(file_name_clone, sealed_data, tpdv_data_size);
+
+            free(cipher);
+            free(tpdv_data);
+            free(sealed_data);
 
             break;
         // case '\n':
@@ -1018,6 +1035,10 @@ int SGX_CDECL main(int argc, char *argv[]) {
 
     if ((ret = sgx_destroy_enclave(global_eid1)) != SGX_SUCCESS) {
         print_error_message(ret, "sgx_destroy_enclave");
+        return 1;
+    }
+    if ((ret = sgx_destroy_enclave(global_eid2)) != SGX_SUCCESS) {
+        print_error_message(ret, "sgx_destroy_enclave (enclave2)");
         return 1;
     }
     return 0;

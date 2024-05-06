@@ -315,6 +315,7 @@ void e2_list_assets(unsigned char *file_name, unsigned char *sealed_data, unsign
     }
 
     if (!unseal_data(sealed_data, sealed_data_size, temp_buf)) {
+        printf("ENCLAVE: Error unsealing data\n");
         return;
     }
 
@@ -425,6 +426,7 @@ void e2_extract_asset(unsigned char *sealed_data, unsigned char *author, unsigne
     }
 
     if (!unseal_data(sealed_data, sealed_data_size, temp_buf)) {
+        printf("ENCLAVE: Error unsealing data\n");
         return;
     }
 
@@ -633,8 +635,7 @@ void e2_show_secret_key(void) {
     printf("\n");
 }
 
-
-void e2_seal_ciphertext(unsigned char *ciphertext, uint32_t ciphertext_size, unsigned char *selead_data, uint32_t sealed_data_size, sgx_aes_gcm_128bit_tag_t *p_in_mac, int mac_size) {
+void e2_seal_ciphertext(unsigned char *ciphertext, uint32_t ciphertext_size, unsigned char *selead_data, uint32_t sealed_data_size) {
 
     // Decipher the ciphertext
     unsigned char *deciphered_text = (unsigned char *)malloc(ciphertext_size);
@@ -643,18 +644,35 @@ void e2_seal_ciphertext(unsigned char *ciphertext, uint32_t ciphertext_size, uns
         return;
     }
 
-    printf("1\n");
-    uint8_t iv[12] = {0};
-    sgx_status_t ret = sgx_rijndael128GCM_decrypt(&e2_aek, ciphertext, ciphertext_size +12, deciphered_text, iv, 12, (uint8_t *) aad_mac_text, strlen(aad_mac_text), p_in_mac);
-    printf("2\n");
+    uint8_t *p_ctr = (uint8_t *)malloc(16);
+    memset(p_ctr, 0, 16);
+    sgx_status_t ret = sgx_aes_ctr_decrypt(&e2_aek, ciphertext, ciphertext_size, p_ctr, 16, deciphered_text);
 
     if (ret != SGX_SUCCESS) {
         printf("ENCLAVE: Error deciphering text\n");
         return;
     }
-    printf("3\n");
 
-    // DEBUG:
-    printf("ENCLAVE: Deciphered text: %s\n", deciphered_text);
+    // DEBUG: imprimir ciphertext
+    // unsigned char actual_author[AUTHOR_SIZE] = {0};
+    // unsigned char actual_password[PW_SIZE] = {0};
+    // memcpy(actual_author, deciphered_text, AUTHOR_SIZE);
+    // memcpy(actual_password, deciphered_text + AUTHOR_SIZE, PW_SIZE);
 
+    // printf("Author: %s\n", actual_author);
+    // printf("Password: %s\n", actual_password);
+
+    // Seal the deciphered text
+    unsigned char *temp_buf = (unsigned char *)malloc(sealed_data_size);
+    if (temp_buf == NULL) {
+        printf("ENCLAVE: Error allocating memory for sealed data\n");
+        return;
+    }
+
+    seal_data(deciphered_text, ciphertext_size, temp_buf);
+    memcpy(selead_data, temp_buf, sealed_data_size);
+
+    free(deciphered_text);
+    free(p_ctr);
+    free(temp_buf);
 }

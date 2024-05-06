@@ -140,8 +140,6 @@ typedef struct ms_e2_seal_ciphertext_t {
 	uint32_t ms_ciphertext_size;
 	unsigned char* ms_selead_data;
 	uint32_t ms_sealed_data_size;
-	sgx_aes_gcm_128bit_tag_t* ms_p_in_mac;
-	int ms_mac_size;
 } ms_e2_seal_ciphertext_t;
 
 typedef struct ms_ocall_e2_print_string_t {
@@ -1313,14 +1311,9 @@ static sgx_status_t SGX_CDECL sgx_e2_seal_ciphertext(void* pms)
 	uint32_t _tmp_sealed_data_size = __in_ms.ms_sealed_data_size;
 	size_t _len_selead_data = _tmp_sealed_data_size;
 	unsigned char* _in_selead_data = NULL;
-	sgx_aes_gcm_128bit_tag_t* _tmp_p_in_mac = __in_ms.ms_p_in_mac;
-	int _tmp_mac_size = __in_ms.ms_mac_size;
-	size_t _len_p_in_mac = _tmp_mac_size;
-	sgx_aes_gcm_128bit_tag_t* _in_p_in_mac = NULL;
 
 	CHECK_UNIQUE_POINTER(_tmp_ciphertext, _len_ciphertext);
 	CHECK_UNIQUE_POINTER(_tmp_selead_data, _len_selead_data);
-	CHECK_UNIQUE_POINTER(_tmp_p_in_mac, _len_p_in_mac);
 
 	//
 	// fence after pointer checks
@@ -1358,23 +1351,9 @@ static sgx_status_t SGX_CDECL sgx_e2_seal_ciphertext(void* pms)
 
 		memset((void*)_in_selead_data, 0, _len_selead_data);
 	}
-	if (_tmp_p_in_mac != NULL && _len_p_in_mac != 0) {
-		if ((_in_p_in_mac = (sgx_aes_gcm_128bit_tag_t*)malloc(_len_p_in_mac)) == NULL) {
-			status = SGX_ERROR_OUT_OF_MEMORY;
-			goto err;
-		}
-
-		memset((void*)_in_p_in_mac, 0, _len_p_in_mac);
-	}
-	e2_seal_ciphertext(_in_ciphertext, _tmp_ciphertext_size, _in_selead_data, _tmp_sealed_data_size, _in_p_in_mac, _tmp_mac_size);
+	e2_seal_ciphertext(_in_ciphertext, _tmp_ciphertext_size, _in_selead_data, _tmp_sealed_data_size);
 	if (_in_selead_data) {
 		if (memcpy_verw_s(_tmp_selead_data, _len_selead_data, _in_selead_data, _len_selead_data)) {
-			status = SGX_ERROR_UNEXPECTED;
-			goto err;
-		}
-	}
-	if (_in_p_in_mac) {
-		if (memcpy_verw_s(_tmp_p_in_mac, _len_p_in_mac, _in_p_in_mac, _len_p_in_mac)) {
 			status = SGX_ERROR_UNEXPECTED;
 			goto err;
 		}
@@ -1383,7 +1362,6 @@ static sgx_status_t SGX_CDECL sgx_e2_seal_ciphertext(void* pms)
 err:
 	if (_in_ciphertext) free(_in_ciphertext);
 	if (_in_selead_data) free(_in_selead_data);
-	if (_in_p_in_mac) free(_in_p_in_mac);
 	return status;
 }
 
@@ -1406,7 +1384,7 @@ SGX_EXTERNC const struct {
 		{(void*)(uintptr_t)sgx_e2_create_message1, 0, 0},
 		{(void*)(uintptr_t)sgx_e2_process_message2, 0, 0},
 		{(void*)(uintptr_t)sgx_e2_show_secret_key, 0, 0},
-		{(void*)(uintptr_t)sgx_e2_seal_ciphertext, 1, 0},
+		{(void*)(uintptr_t)sgx_e2_seal_ciphertext, 0, 0},
 	}
 };
 

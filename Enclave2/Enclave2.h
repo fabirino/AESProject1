@@ -59,7 +59,7 @@ void e2_create_message1(sgx_dh_msg1_t *msg1,sgx_status_t *dh_status);
 void e2_process_message2(const sgx_dh_msg2_t *msg2, sgx_dh_msg3_t *msg3, sgx_status_t *dh_status);
 void e2_show_secret_key(void);
 
-void e2_seal_ciphertext(unsigned char *ciphertext, uint32_t ciphertext_size, unsigned char *selead_data, uint32_t sealed_data_size, sgx_aes_gcm_128bit_tag_t *p_in_mac, int mac_size);
+void e2_seal_ciphertext(unsigned char *ciphertext, uint32_t ciphertext_size, unsigned char *selead_data, uint32_t sealed_data_size);
 
 
 #if defined(__cplusplus)

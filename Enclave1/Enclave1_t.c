@@ -150,8 +150,6 @@ typedef struct ms_e1_get_TPDV_ciphered_t {
 	uint32_t ms_tpdv_data_size;
 	unsigned char* ms_ciphered_tpdv_data;
 	uint32_t ms_ciphered_tpdv_data_size;
-	sgx_aes_gcm_128bit_tag_t* ms_p_out_mac;
-	int ms_mac_size;
 } ms_e1_get_TPDV_ciphered_t;
 
 typedef struct ms_ocall_e1_print_string_t {
@@ -1425,14 +1423,9 @@ static sgx_status_t SGX_CDECL sgx_e1_get_TPDV_ciphered(void* pms)
 	uint32_t _tmp_ciphered_tpdv_data_size = __in_ms.ms_ciphered_tpdv_data_size;
 	size_t _len_ciphered_tpdv_data = _tmp_ciphered_tpdv_data_size;
 	unsigned char* _in_ciphered_tpdv_data = NULL;
-	sgx_aes_gcm_128bit_tag_t* _tmp_p_out_mac = __in_ms.ms_p_out_mac;
-	int _tmp_mac_size = __in_ms.ms_mac_size;
-	size_t _len_p_out_mac = _tmp_mac_size;
-	sgx_aes_gcm_128bit_tag_t* _in_p_out_mac = NULL;
 
 	CHECK_UNIQUE_POINTER(_tmp_tpdv_data, _len_tpdv_data);
 	CHECK_UNIQUE_POINTER(_tmp_ciphered_tpdv_data, _len_ciphered_tpdv_data);
-	CHECK_UNIQUE_POINTER(_tmp_p_out_mac, _len_p_out_mac);
 
 	//
 	// fence after pointer checks
@@ -1470,23 +1463,9 @@ static sgx_status_t SGX_CDECL sgx_e1_get_TPDV_ciphered(void* pms)
 
 		memset((void*)_in_ciphered_tpdv_data, 0, _len_ciphered_tpdv_data);
 	}
-	if (_tmp_p_out_mac != NULL && _len_p_out_mac != 0) {
-		if ((_in_p_out_mac = (sgx_aes_gcm_128bit_tag_t*)malloc(_len_p_out_mac)) == NULL) {
-			status = SGX_ERROR_OUT_OF_MEMORY;
-			goto err;
-		}
-
-		memset((void*)_in_p_out_mac, 0, _len_p_out_mac);
-	}
-	e1_get_TPDV_ciphered(_in_tpdv_data, _tmp_tpdv_data_size, _in_ciphered_tpdv_data, _tmp_ciphered_tpdv_data_size, _in_p_out_mac, _tmp_mac_size);
+	e1_get_TPDV_ciphered(_in_tpdv_data, _tmp_tpdv_data_size, _in_ciphered_tpdv_data, _tmp_ciphered_tpdv_data_size);
 	if (_in_ciphered_tpdv_data) {
 		if (memcpy_verw_s(_tmp_ciphered_tpdv_data, _len_ciphered_tpdv_data, _in_ciphered_tpdv_data, _len_ciphered_tpdv_data)) {
-			status = SGX_ERROR_UNEXPECTED;
-			goto err;
-		}
-	}
-	if (_in_p_out_mac) {
-		if (memcpy_verw_s(_tmp_p_out_mac, _len_p_out_mac, _in_p_out_mac, _len_p_out_mac)) {
 			status = SGX_ERROR_UNEXPECTED;
 			goto err;
 		}
@@ -1495,7 +1474,6 @@ static sgx_status_t SGX_CDECL sgx_e1_get_TPDV_ciphered(void* pms)
 err:
 	if (_in_tpdv_data) free(_in_tpdv_data);
 	if (_in_ciphered_tpdv_data) free(_in_ciphered_tpdv_data);
-	if (_in_p_out_mac) free(_in_p_out_mac);
 	return status;
 }
 

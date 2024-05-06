@@ -341,6 +341,7 @@ void e1_list_assets(unsigned char *file_name, unsigned char *sealed_data, unsign
     }
 
     if (!unseal_data(sealed_data, sealed_data_size, temp_buf)) {
+        printf("ENCLAVE: Error unsealing data\n");
         return;
     }
 
@@ -361,7 +362,6 @@ void e1_list_assets(unsigned char *file_name, unsigned char *sealed_data, unsign
 
     // Get the number of assets
     unsigned char num_assets = temp_buf[AUTHOR_SIZE + PW_SIZE];
-
     printf("ENCLAVE: Nome do TPDV -> %s\n", file_name);
     printf("ENCLAVE: Autor -> %s\n", actual_author);
     printf("ENCLAVE: Número de Assets -> %d\n", num_assets);
@@ -451,6 +451,7 @@ void e1_extract_asset(unsigned char *sealed_data, unsigned char *author, unsigne
     }
 
     if (!unseal_data(sealed_data, sealed_data_size, temp_buf)) {
+        printf("ENCLAVE: Error unsealing data\n");
         return;
     }
 
@@ -659,8 +660,7 @@ void e1_show_secret_key(void) {
     printf("\n");
 }
 
-
-void e1_get_TPDV_ciphered(unsigned char *tpdv_data, uint32_t tpdv_data_size, unsigned char *ciphered_tpdv_data, uint32_t ciphered_tpdv_data_size, sgx_aes_gcm_128bit_tag_t *p_out_mac, int mac_size) {
+void e1_get_TPDV_ciphered(unsigned char *tpdv_data, uint32_t tpdv_data_size, unsigned char *ciphered_tpdv_data, uint32_t ciphered_tpdv_data_size) {
     
     // Unsealed data
     uint32_t unsealed_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)tpdv_data);
@@ -674,15 +674,24 @@ void e1_get_TPDV_ciphered(unsigned char *tpdv_data, uint32_t tpdv_data_size, uns
     if (!unseal_data(tpdv_data, tpdv_data_size, temp_buf)) {
         return;
     }
-
+    
     
     // Cipher the TPDV data with the shared key
-    uint8_t iv[12] = {0};
-    sgx_status_t ret = sgx_rijndael128GCM_encrypt(&e1_aek, temp_buf, unsealed_size, ciphered_tpdv_data, iv, 12, (uint8_t *) aad_mac_text, strlen(aad_mac_text), p_out_mac);
+    uint8_t *p_ctr =  (uint8_t *)malloc(16);
+    memset(p_ctr, 0, 16);
+    sgx_status_t ret = sgx_aes_ctr_encrypt(&e1_aek, temp_buf, unsealed_size, p_ctr, 16, ciphered_tpdv_data);
     
     if (ret != SGX_SUCCESS) {
         printf("ENCLAVE: Error encrypting TPDV data\n");
-        printf("ENCALVE: ret %d\n", ret);
     }
 
+    // DEBUG:
+    // printf("ENCLAVE: TPDV data ciphered: ");
+    // for (int i = 0; i < unsealed_size; i++) {
+    //     printf("%02x", ciphered_tpdv_data[i]);
+    // }
+    // printf("\n");
+
+    free(temp_buf);
+    free(p_ctr);
 }

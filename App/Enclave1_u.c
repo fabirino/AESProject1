@@ -124,8 +124,6 @@ typedef struct ms_e1_get_TPDV_ciphered_t {
 	uint32_t ms_tpdv_data_size;
 	unsigned char* ms_ciphered_tpdv_data;
 	uint32_t ms_ciphered_tpdv_data_size;
-	sgx_aes_gcm_128bit_tag_t* ms_p_out_mac;
-	int ms_mac_size;
 } ms_e1_get_TPDV_ciphered_t;
 
 typedef struct ms_ocall_e1_print_string_t {
@@ -339,7 +337,7 @@ sgx_status_t e1_show_secret_key(sgx_enclave_id_t eid)
 	return status;
 }
 
-sgx_status_t e1_get_TPDV_ciphered(sgx_enclave_id_t eid, unsigned char* tpdv_data, uint32_t tpdv_data_size, unsigned char* ciphered_tpdv_data, uint32_t ciphered_tpdv_data_size, sgx_aes_gcm_128bit_tag_t* p_out_mac, int mac_size)
+sgx_status_t e1_get_TPDV_ciphered(sgx_enclave_id_t eid, unsigned char* tpdv_data, uint32_t tpdv_data_size, unsigned char* ciphered_tpdv_data, uint32_t ciphered_tpdv_data_size)
 {
 	sgx_status_t status;
 	ms_e1_get_TPDV_ciphered_t ms;
@@ -347,8 +345,6 @@ sgx_status_t e1_get_TPDV_ciphered(sgx_enclave_id_t eid, unsigned char* tpdv_data
 	ms.ms_tpdv_data_size = tpdv_data_size;
 	ms.ms_ciphered_tpdv_data = ciphered_tpdv_data;
 	ms.ms_ciphered_tpdv_data_size = ciphered_tpdv_data_size;
-	ms.ms_p_out_mac = p_out_mac;
-	ms.ms_mac_size = mac_size;
 	status = sgx_ecall(eid, 14, &ocall_table_Enclave1, &ms);
 	return status;
 }

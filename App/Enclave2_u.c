@@ -114,8 +114,6 @@ typedef struct ms_e2_seal_ciphertext_t {
 	uint32_t ms_ciphertext_size;
 	unsigned char* ms_selead_data;
 	uint32_t ms_sealed_data_size;
-	sgx_aes_gcm_128bit_tag_t* ms_p_in_mac;
-	int ms_mac_size;
 } ms_e2_seal_ciphertext_t;
 
 typedef struct ms_ocall_e2_print_string_t {
@@ -314,7 +312,7 @@ sgx_status_t e2_show_secret_key(sgx_enclave_id_t eid)
 	return status;
 }
 
-sgx_status_t e2_seal_ciphertext(sgx_enclave_id_t eid, unsigned char* ciphertext, uint32_t ciphertext_size, unsigned char* selead_data, uint32_t sealed_data_size, sgx_aes_gcm_128bit_tag_t* p_in_mac, int mac_size)
+sgx_status_t e2_seal_ciphertext(sgx_enclave_id_t eid, unsigned char* ciphertext, uint32_t ciphertext_size, unsigned char* selead_data, uint32_t sealed_data_size)
 {
 	sgx_status_t status;
 	ms_e2_seal_ciphertext_t ms;
@@ -322,8 +320,6 @@ sgx_status_t e2_seal_ciphertext(sgx_enclave_id_t eid, unsigned char* ciphertext,
 	ms.ms_ciphertext_size = ciphertext_size;
 	ms.ms_selead_data = selead_data;
 	ms.ms_sealed_data_size = sealed_data_size;
-	ms.ms_p_in_mac = p_in_mac;
-	ms.ms_mac_size = mac_size;
 	status = sgx_ecall(eid, 13, &ocall_table_Enclave2, &ms);
 	return status;
 }
