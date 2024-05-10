@@ -187,6 +187,17 @@ int check_credentials(unsigned char *actual_password, unsigned char *actual_auth
     }
 }
 
+int check_nonce(unsigned char *nonce, unsigned char *content) {
+    unsigned char new_nonce[4] = {0};
+    calculate_nonce(content, new_nonce);
+
+    if (memcmp(nonce, new_nonce, 4) != 0) {
+        return 0;
+    }
+
+    return 1;
+}
+
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
 // =================================================================== 1 ===================================================================
 // #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
@@ -241,6 +252,15 @@ void e2_add_asset(unsigned char *tpdv_data, unsigned char *author, unsigned char
     }
 
     if (!unseal_data(tpdv_data, tpdv_data_size_sealed, temp_buf)) {
+        return;
+    }
+
+    // Check Nonce
+    unsigned char actual_nonce[4] = {0};
+    memcpy(actual_nonce, temp_buf + AUTHOR_SIZE + PW_SIZE + 1, 4);
+
+    if (!check_nonce(actual_nonce, temp_buf + HEADER_SIZE)) {
+        printf("ENCLAVE: Nonce alterado, integridade do TPDV comprometida\n");
         return;
     }
 
@@ -316,6 +336,15 @@ void e2_list_assets(unsigned char *file_name, unsigned char *sealed_data, unsign
 
     if (!unseal_data(sealed_data, sealed_data_size, temp_buf)) {
         printf("ENCLAVE: Error unsealing data\n");
+        return;
+    }
+
+    // Check Nonce
+    unsigned char actual_nonce[4] = {0};
+    memcpy(actual_nonce, temp_buf + AUTHOR_SIZE + PW_SIZE + 1, 4);
+
+    if (!check_nonce(actual_nonce, temp_buf + HEADER_SIZE)) {
+        printf("ENCLAVE: Nonce alterado, integridade do TPDV comprometida\n");
         return;
     }
 
@@ -430,6 +459,15 @@ void e2_extract_asset(unsigned char *sealed_data, unsigned char *author, unsigne
         return;
     }
 
+    // Check Nonce
+    unsigned char actual_nonce[4] = {0};
+    memcpy(actual_nonce, temp_buf + AUTHOR_SIZE + PW_SIZE + 1, 4);
+
+    if (!check_nonce(actual_nonce, temp_buf + HEADER_SIZE)) {
+        printf("ENCLAVE: Nonce alterado, integridade do TPDV comprometida\n");
+        return;
+    }
+
     // Check credentials
     unsigned char actual_author[AUTHOR_SIZE] = {0};
     unsigned char actual_password[PW_SIZE] = {0};
@@ -481,6 +519,15 @@ void e2_compare_hash(unsigned char *tpdv_data, unsigned char *author, unsigned c
     }
 
     if (!unseal_data(tpdv_data, tpdv_data_size, temp_buf)) {
+        return;
+    }
+
+    // Check Nonce
+    unsigned char actual_nonce[4] = {0};
+    memcpy(actual_nonce, temp_buf + AUTHOR_SIZE + PW_SIZE + 1, 4);
+
+    if (!check_nonce(actual_nonce, temp_buf + HEADER_SIZE)) {
+        printf("ENCLAVE: Nonce alterado, integridade do TPDV comprometida\n");
         return;
     }
 
@@ -583,6 +630,15 @@ void e2_change_password(unsigned char *tpdv_data, unsigned char *author, unsigne
     }
 
     if (!unseal_data(tpdv_data, tpdv_data_size, temp_buf)) {
+        return;
+    }
+
+    // Check Nonce
+    unsigned char actual_nonce[4] = {0};
+    memcpy(actual_nonce, temp_buf + AUTHOR_SIZE + PW_SIZE + 1, 4);
+
+    if (!check_nonce(actual_nonce, temp_buf + HEADER_SIZE)) {
+        printf("ENCLAVE: Nonce alterado, integridade do TPDV comprometida\n");
         return;
     }
 
