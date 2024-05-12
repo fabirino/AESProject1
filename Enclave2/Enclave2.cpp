@@ -190,11 +190,9 @@ int check_credentials(unsigned char *actual_password, unsigned char *actual_auth
 int check_nonce(unsigned char *nonce, unsigned char *content) {
     unsigned char new_nonce[4] = {0};
     calculate_nonce(content, new_nonce);
-
     if (memcmp(nonce, new_nonce, 4) != 0) {
         return 0;
     }
-
     return 1;
 }
 
